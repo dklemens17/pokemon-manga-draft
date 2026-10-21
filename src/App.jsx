@@ -407,6 +407,47 @@ function isLeagueUnlocked(o, badges, league, isGuest) {
   return i === 0 || (league || []).includes(ELITE_FOUR_IDS[i - 1]);
 }
 
+// What each opponent says in battle, as a speech bubble in the story: when their ace comes out,
+// when they're down to their last Pokémon, and (on the result screen) when they win or lose.
+// {ace} is filled with the ace's name. All original lines, written for each character's voice.
+const LEADER_LINES = {
+  brock:    { ace: `{ace}, show them what rock-solid really means!`, last: `Down to my last one... but stone doesn't crack that easily.`,
+              lose: `Your will is harder than my stone. The Boulder Badge is yours. You earned it.`, win: `Solid defense wins battles. Come back when you can crack it.` },
+  misty:    { ace: `{ace}, it's your time to shine!`, last: `Don't you dare count me out yet!`,
+              lose: `Hmph... fine! You beat me fair and square. Here's the Cascade Badge.`, win: `Told you! Water's the toughest type there is!` },
+  surge:    { ace: `Time to bring the lightning! Go, {ace}!`, last: `Ha! Still got one more charge left in me, kid!`,
+              lose: `Whoa! You're the real deal, kid. The Thunder Badge is yours!`, win: `Too slow, kid! Lightning doesn't wait for anybody!` },
+  sabrina:  { ace: `I foresaw this moment. {ace}, end it.`, last: `...This was not in my vision.`,
+              lose: `The future shifted. You have earned the Marsh Badge.`, win: `Just as I foresaw.` },
+  erika:    { ace: `{ace}, please bloom for me.`, last: `My garden still stands... for now.`,
+              lose: `What a lovely battle. Please accept the Rainbow Badge.`, win: `Gentle things grow strong. Do visit my garden again.` },
+  koga:     { ace: `Now you face my true technique! {ace}, strike!`, last: `A ninja fights hardest from the shadows.`,
+              lose: `Fwahaha! You have seen through my tricks. Take the Soul Badge.`, win: `You never saw it coming. That is the way of the ninja.` },
+  blaine:   { ace: `Hah! Things are heating up! Burn bright, {ace}!`, last: `One ember left... and embers start fires!`,
+              lose: `Hah! I've burned out! You've earned the Volcano Badge!`, win: `Hah! Too hot to handle? Cool off and come back!` },
+  giovanni: { ace: `Enough games. {ace}, crush them.`, last: `Interesting. You're stronger than I expected.`,
+              lose: `...So this is defeat. The Earth Badge is yours. Use it well.`, win: `As expected. Come back when you're worth my time.` },
+  lorelei:  { ace: `{ace}, freeze them where they stand.`, last: `Cold, isn't it? Even now, I'm not finished.`,
+              lose: `Impressive. Go on. The next of the Elite Four is waiting.`, win: `Your journey ends here, in the cold.` },
+  bruno:    { ace: `Hoo hah! {ace}, show them our training!`, last: `My muscles burn, but I will not yield!`,
+              lose: `Hah! Your strength is real. Go on ahead!`, win: `Train harder! Then face me again!` },
+  agatha:   { ace: `Hehehe... {ace}, give them a fright.`, last: `Don't think you've won yet, youngster.`,
+              lose: `You win, you win. Oak chose well. Go on, then.`, win: `Hehehe! Off you go, back to Oak's lab!` },
+  lance:    { ace: `Behold the might of dragons! {ace}, go!`, last: `A dragon fights to its final breath!`,
+              lose: `You've proven yourself. The Champion awaits.`, win: `Dragons do not fall so easily.` },
+  gary:     { ace: `This is it! {ace}, finish this!`, last: `No way... I am NOT losing to you!`,
+              lose: `I... lost? To you? ...Fine. You're the Champion now. Don't let it go to your head.`, win: `Smell ya later! The title stays with me!` },
+  oak:      { ace: `Now for my oldest friend. {ace}, let's show them!`, last: `My, my! You've grown into a fine trainer!`,
+              lose: `Wonderful! Simply wonderful! I'm proud to enter you into the Hall of Fame!`, win: `Ho ho! There's always more to learn. Come back anytime!` },
+};
+function leaderLine(leader, moment, vars = {}) {
+  const lines = LEADER_LINES[leader.id] || {};
+  let text = lines[moment];
+  if (moment === 'loseGuest') text = `Well battled! Come back with a trainer name and the ${leader.badge} is yours.`;
+  if (moment === 'draw') text = `A draw? Then we settle this next time.`;
+  return fillTemplate(text || '', vars);
+}
+
 function getLeader(id) { return ALL_OPPONENTS.find(l => l.id === id) || null; }
 function gymIndex(id) { return GYM_LEADERS.findIndex(l => l.id === id); }
 function sortBadges(badges) { return [...new Set(badges || [])].filter(id => gymIndex(id) >= 0).sort((a, b) => gymIndex(a) - gymIndex(b)); }
@@ -916,7 +957,10 @@ function narrate(event) {
 function makeSnapshot(teams, active) {
   return [0, 1].map(side => {
     const b = teams[side][active[side]];
-    return { name: b.name, types: [...b.types], currentHp: b.currentHp, maxHp: b.maxHp, hasEvolved: b.hasEvolved };
+    return {
+      name: b.name, types: [...b.types], currentHp: b.currentHp, maxHp: b.maxHp, hasEvolved: b.hasEvolved,
+      activeIndex: active[side], team: teams[side].map(m => ({ fainted: m.fainted })),
+    };
   });
 }
 
@@ -1034,6 +1078,14 @@ function applySwitchIn(state, sideIdx, newIdx) {
   const beat = { id: state.beatCounter, event, mechanicalText: narrate(event), aiText: null, snapshotAfter: makeSnapshot(teams, active) };
   const log = [...state.log, beat];
   return { ...state, teams, active, needsSwitch, log, beatCounter: state.beatCounter + 1 };
+}
+
+// Adds an opponent's speech-bubble line to the story: straight into the log when nothing is waiting
+// behind CONTINUE, otherwise at the end of the queue so it reads after the beats that caused it.
+function appendLeaderBeat(state, speaker, moment, text) {
+  const beat = { id: state.beatCounter, event: { type: 'leader_line', side: 1, speaker, moment }, mechanicalText: text, aiText: null, snapshotAfter: makeSnapshot(state.teams, state.active) };
+  if (state.pendingBeats.length > 0) return { ...state, pendingBeats: [...state.pendingBeats, beat], beatCounter: state.beatCounter + 1 };
+  return { ...state, log: [...state.log, beat], beatCounter: state.beatCounter + 1 };
 }
 
 function revealNextBeat(state) {
@@ -1708,19 +1760,21 @@ function HPBar({ current, max }) {
   );
 }
 
-function BattlerPanel({ battler, align }) {
+function BattlerPanel({ battler, align, aceIndices = [] }) {
+  const isAce = aceIndices.includes(battler.activeIndex);
   return (
-    <div style={{ flex: 1 }}>
+    <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 4, justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
         {battler.types.map(t => <StampBadge key={t} type={t} size={20} />)}
       </div>
       <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 17, color: COLORS.paper, textAlign: align }}>
-        {battler.name}{battler.hasEvolved && <span style={{ color: COLORS.jadeBright }}> &#10022;</span>}
+        {isAce && <span title="Ace" style={{ color: '#D9B54A' }}>★ </span>}{battler.name}{battler.hasEvolved && <span style={{ color: COLORS.jadeBright }}> &#10022;</span>}
       </div>
       <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash, margin: '4px 0', textAlign: align }}>
         {battler.currentHp}/{battler.maxHp} HP
       </div>
       <HPBar current={battler.currentHp} max={battler.maxHp} />
+      <TeamPips snapshot={battler} align={align} aceIndices={aceIndices} />
     </div>
   );
 }
@@ -2123,6 +2177,185 @@ function BadgeDots({ badges }) {
   return (
     <div style={{ display: 'flex', gap: 2, marginTop: 3 }} title={`${owned.length} gym badge${owned.length === 1 ? '' : 's'}`}>
       {owned.map(l => <BadgeIcon key={l.id} id={l.id} size={12} label={l.badge} />)}
+    </div>
+  );
+}
+
+// ===================== BATTLE VISUALS: ARENAS, VERSUS SPLASH, ACE ENTRANCE, TEAM PIPS =====================
+function hexA(hex, alpha) {
+  const h = (hex || '#888888').replace('#', '');
+  const full = h.length === 3 ? h.split('').map(x => x + x).join('') : h;
+  const n = parseInt(full, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+// Ink or paper, whichever reads better on a given background color.
+function readableOn(hex) {
+  const h = (hex || '#888888').replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map(x => x + x).join('') : h, 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.3 ? COLORS.ink : COLORS.paper;
+}
+function svgTile(w, h, body) {
+  return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>${body}</svg>`)}")`;
+}
+
+// Faint, slow background patterns for each arena -- color and line only, kept well behind the text.
+const ARENA_PATTERNS = {
+  cracks: c => ({ image: svgTile(160, 160, `<g fill='none' stroke='${c}' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'><path d='M0 42 L28 52 L44 38 L78 60 L118 47 L160 66'/><path d='M78 60 L84 92 L72 118 L80 160'/><path d='M8 118 L38 104 L56 122 L72 118'/><path d='M118 47 L126 20 L148 8'/></g>`), size: '160px 160px' }),
+  waves: c => ({ image: svgTile(120, 44, `<path d='M0 22 Q15 8 30 22 T60 22 T90 22 T120 22' fill='none' stroke='${c}' stroke-width='2.5'/>`), size: '120px 44px', anim: 'arenaWaves 9s linear infinite' }),
+  hazard: c => ({ image: `repeating-linear-gradient(135deg, ${c} 0 12px, transparent 12px 34px)`, size: 'auto', anim: 'arenaFlicker 4s linear infinite' }),
+  ripples: c => ({ image: `repeating-radial-gradient(circle at 50% 30%, ${c} 0 2px, transparent 2px 34px)`, size: 'auto', anim: 'arenaPulse 4s ease-in-out infinite' }),
+  petals: c => ({ image: svgTile(140, 140, `<g fill='${c}'><ellipse cx='20' cy='30' rx='7' ry='3.5' transform='rotate(30 20 30)'/><ellipse cx='90' cy='18' rx='6' ry='3' transform='rotate(-20 90 18)'/><ellipse cx='60' cy='80' rx='7' ry='3.5' transform='rotate(60 60 80)'/><ellipse cx='118' cy='106' rx='6' ry='3' transform='rotate(10 118 106)'/><ellipse cx='28' cy='120' rx='5' ry='2.5' transform='rotate(-40 28 120)'/></g>`), size: '140px 140px', anim: 'arenaPetals 16s linear infinite' }),
+  haze: c => ({ image: `radial-gradient(ellipse 60% 40% at 30% 40%, ${c}, transparent 70%), radial-gradient(ellipse 50% 35% at 75% 70%, ${c}, transparent 70%)`, size: '200% 200%', anim: 'arenaHaze 18s ease-in-out infinite alternate' }),
+  embers: c => ({ image: svgTile(120, 120, `<g fill='${c}'><circle cx='18' cy='100' r='2.5'/><circle cx='64' cy='60' r='2'/><circle cx='100' cy='20' r='3'/><circle cx='40' cy='16' r='1.5'/><circle cx='88' cy='96' r='1.8'/></g>`), size: '120px 120px', anim: 'arenaRise 7s linear infinite' }),
+  strata: c => ({ image: svgTile(200, 60, `<g fill='none' stroke='${c}' stroke-width='3'><path d='M0 15 Q50 5 100 15 T200 15'/><path d='M0 42 Q50 32 100 42 T200 42' stroke-width='2'/></g>`), size: '200px 60px' }),
+  snow: c => ({ image: svgTile(120, 120, `<g fill='${c}'><circle cx='14' cy='20' r='2'/><circle cx='70' cy='8' r='1.5'/><circle cx='104' cy='52' r='2.4'/><circle cx='40' cy='76' r='1.8'/><circle cx='86' cy='104' r='2'/></g>`), size: '120px 120px', anim: 'arenaFall 10s linear infinite' }),
+  speedlines: c => ({ image: `repeating-conic-gradient(from 0deg at 50% 35%, ${c} 0deg 1.5deg, transparent 1.5deg 9deg)`, size: 'auto', anim: 'arenaPulse 2.4s ease-in-out infinite' }),
+  scales: c => ({ image: svgTile(40, 24, `<path d='M0 24 A20 20 0 0 1 40 24 M-20 12 A20 20 0 0 1 20 12 M20 12 A20 20 0 0 1 60 12' fill='none' stroke='${c}' stroke-width='1.5'/>`), size: '40px 24px' }),
+  sparkle: c => ({ image: svgTile(120, 120, `<g fill='${c}'><path d='M20 10 L23 20 L33 23 L23 26 L20 36 L17 26 L7 23 L17 20 Z'/><path d='M88 70 L90 77 L97 79 L90 81 L88 88 L86 81 L79 79 L86 77 Z'/><path d='M60 30 L61 34 L65 35 L61 36 L60 40 L59 36 L55 35 L59 34 Z'/></g>`), size: '120px 120px', anim: 'arenaTwinkle 3s ease-in-out infinite' }),
+  grid: c => ({ image: `linear-gradient(${c} 1px, transparent 1px), linear-gradient(90deg, ${c} 1px, transparent 1px)`, size: '24px 24px' }),
+};
+// Each opponent's arena: a pattern in their color, over a base tint (the League has its own).
+const ARENA_THEMES = {
+  brock: { pattern: 'cracks' }, misty: { pattern: 'waves' }, surge: { pattern: 'hazard', strength: 0.07 }, sabrina: { pattern: 'ripples' },
+  erika: { pattern: 'petals' }, koga: { pattern: 'haze', strength: 0.16 }, blaine: { pattern: 'embers', strength: 0.3 }, giovanni: { pattern: 'strata' },
+  lorelei: { pattern: 'snow', base: '#1B2036', strength: 0.35 }, bruno: { pattern: 'speedlines', base: '#1B2036', strength: 0.08 },
+  agatha: { pattern: 'haze', base: '#1B2036', strength: 0.2 }, lance: { pattern: 'scales', base: '#1B2036' },
+  gary: { pattern: 'sparkle', base: '#262012', strength: 0.16 }, oak: { pattern: 'grid', base: '#26241F', strength: 0.06 },
+};
+function arenaLayers(leader) {
+  const theme = ARENA_THEMES[leader.id] || { pattern: 'grid' };
+  const color = opponentColor(leader);
+  const p = ARENA_PATTERNS[theme.pattern](hexA(color, theme.strength || 0.12));
+  return { theme, color, p };
+}
+
+// The arena backdrop behind a gym or League battle: fixed to the screen, purely decorative.
+function ArenaBackdrop({ leader }) {
+  const { theme, color, p } = arenaLayers(leader);
+  return (
+    <div aria-hidden="true" style={{
+      position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
+      background: `linear-gradient(180deg, ${hexA(color, 0.2)} 0%, ${hexA(color, 0.05)} 38%, transparent 70%), ${theme.base || COLORS.ink}`,
+    }}>
+      <div className="arena-layer" style={{ position: 'absolute', inset: 0, backgroundImage: p.image, backgroundSize: p.size, animation: p.anim }} />
+    </div>
+  );
+}
+
+// A manga-style split panel before a gym or League battle: the opponent above in their color with
+// their badge and taunt, the challenger below, and a big VS between them.
+function VersusSplash({ leader, trainers, rosters, onBegin }) {
+  const color = opponentColor(leader);
+  const fg = readableOn(color);
+  const { p } = arenaLayers(leader);
+  const kind = opponentKind(leader);
+  const title = { gym: 'GYM LEADER', elite: 'ELITE FOUR', champion: 'CHAMPION', professor: 'POKÉMON PROFESSOR' }[kind];
+  const venue = kind === 'gym' ? `${leader.city} Gym` : kind === 'professor' ? 'Pallet Town' : 'Indigo Plateau';
+  const stake = kind === 'gym' ? `the ${leader.badge}` : kind === 'elite' ? 'the road to the Champion' : kind === 'champion' ? 'the Championship' : 'the final battle';
+  return (
+    <div role="dialog" aria-label={`${leader.name} versus ${trainers[0].name}`} style={{ position: 'fixed', inset: 0, zIndex: 60, background: COLORS.ink, overflowY: 'auto' }}>
+      <div style={{ minHeight: '100%', maxWidth: 560, margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
+        <div className="vs-slide-r" style={{ position: 'relative', padding: '30px 20px 70px', background: `linear-gradient(160deg, ${color}, ${hexA(color, 0.55)})`, clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 84%)' }}>
+          <div aria-hidden="true" style={{ position: 'absolute', inset: 0, backgroundImage: p.image, backgroundSize: p.size, opacity: 0.9 }} />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <BadgeIcon id={leader.id} size={68} label={leader.badge || leader.name} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 10, fontWeight: 600, letterSpacing: '0.14em', color: fg, opacity: 0.85 }}>{title} · {venue.toUpperCase()}</div>
+              <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: 44, lineHeight: 0.95, color: fg }}>{leader.name.toUpperCase()}</div>
+            </div>
+          </div>
+          <div style={{ position: 'relative', marginTop: 18, background: COLORS.paper, color: COLORS.ink, borderRadius: 14, padding: '12px 14px', fontFamily: FONT_BODY, fontSize: 15, fontStyle: 'italic', lineHeight: 1.45, boxShadow: '0 4px 0 rgba(0,0,0,0.25)' }}>
+            <span aria-hidden="true" style={{ position: 'absolute', top: -7, left: 30, width: 14, height: 14, background: COLORS.paper, transform: 'rotate(45deg)' }} />
+            “{leader.taunt}”
+          </div>
+          <div style={{ position: 'relative', marginTop: 12, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', color: fg, opacity: 0.85 }}>
+            LEADS WITH {rosters[1][0].name.toUpperCase()}
+          </div>
+        </div>
+
+        <div className="vs-pop" style={{ position: 'relative', zIndex: 2, textAlign: 'center', margin: '-40px 0 -40px' }}>
+          <span style={{ display: 'inline-block', transform: 'skewX(-10deg)', fontFamily: FONT_DISPLAY, fontWeight: 900, fontStyle: 'italic', fontSize: 88, lineHeight: 1, color: COLORS.paper, WebkitTextStroke: `3px ${COLORS.ink}`, textShadow: `5px 5px 0 ${color}` }}>VS</span>
+        </div>
+
+        <div className="vs-slide-l" style={{ flex: 1, padding: '84px 20px 28px', background: `linear-gradient(200deg, ${hexA(COLORS.jade, 0.45)}, ${COLORS.panel} 70%)`, clipPath: 'polygon(0 12%, 100% 0, 100% 100%, 0 100%)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.14em', color: COLORS.jadeBright }}>CHALLENGER · FOR {stake.toUpperCase()}</div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: 44, lineHeight: 0.95, color: COLORS.paper, overflowWrap: 'anywhere' }}>{trainers[0].name.toUpperCase()}</div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', color: COLORS.ash, marginTop: 10 }}>YOUR TEAM</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {rosters[0].map((p, i) => (
+              <span key={p.name} style={{
+                fontFamily: FONT_MONO, fontSize: 11, padding: '4px 10px', borderRadius: 20,
+                color: COLORS.paper, background: i === 0 ? hexA(COLORS.jade, 0.55) : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${p.earnedAce ? '#D9B54A' : i === 0 ? COLORS.jadeBright : COLORS.hairline}`,
+              }}>
+                {p.earnedAce ? '★ ' : ''}{p.name}{i === 0 ? ' · LEAD' : ''}
+              </span>
+            ))}
+          </div>
+          <button onClick={onBegin} style={{
+            marginTop: 'auto', background: COLORS.jade, color: COLORS.paper, border: 'none', borderRadius: 4, padding: '14px',
+            fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 20, letterSpacing: '0.06em', cursor: 'pointer',
+          }}>
+            LET'S BATTLE!
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The ace's entrance: a skewed banner sweeps across the screen, then clears itself (tap to skip).
+function AceBanner({ leader, aceName, onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const color = opponentColor(leader);
+  const fg = readableOn(color);
+  const lines = ARENA_PATTERNS.speedlines(hexA(fg === COLORS.ink ? '#FFFFFF' : '#000000', 0.25));
+  return (
+    <div role="status" aria-label={`${leader.name}'s ace, ${aceName}`} onClick={onDone} className="ace-fade" style={{ position: 'fixed', inset: 0, zIndex: 55, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer' }}>
+      <div className="ace-sweep" style={{ width: '150%', padding: '24px 0', position: 'relative', background: `linear-gradient(90deg, transparent, ${color} 20%, ${color} 80%, transparent)` }}>
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, backgroundImage: lines.image }} />
+        <div style={{ position: 'relative', transform: 'skewY(7deg)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+          <BadgeIcon id={leader.id} size={58} label={leader.badge || leader.name} />
+          <div>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.2em', color: fg }}>{leader.name.toUpperCase()}'S ACE</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, fontStyle: 'italic', fontSize: 46, lineHeight: 1, color: fg }}>{aceName.toUpperCase()}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// One pip per Pokémon on a team: the active one larger and jade, the rest paper, fainted ones an
+// empty ring; aces get a gold rim. Driven by the latest revealed beat, so it never spoils a faint.
+function TeamPips({ snapshot, align, aceIndices = [] }) {
+  if (!snapshot || !snapshot.team) return null;
+  const left = snapshot.team.filter(m => !m.fainted).length;
+  const count = (
+    <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.ash, letterSpacing: '0.04em' }}>{left}/{snapshot.team.length}</span>
+  );
+  return (
+    <div aria-label={`${left} of ${snapshot.team.length} Pokémon left`} style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 7, justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
+      {align === 'right' && count}
+      {snapshot.team.map((m, i) => {
+        const active = i === snapshot.activeIndex && !m.fainted;
+        const ace = aceIndices.includes(i);
+        const d = active ? 11 : 8;
+        return (
+          <span key={i} style={{
+            width: d, height: d, borderRadius: '50%', boxSizing: 'border-box', display: 'inline-block', flexShrink: 0,
+            background: m.fainted ? 'transparent' : active ? COLORS.jadeBright : COLORS.paper,
+            border: m.fainted ? `1px solid ${COLORS.ash}` : ace ? '2px solid #D9B54A' : 'none',
+            opacity: m.fainted ? 0.5 : active ? 1 : 0.7,
+          }} />
+        );
+      })}
+      {align !== 'right' && count}
     </div>
   );
 }
@@ -2758,6 +2991,13 @@ function GymResultPanel({ gym, result }) {
 function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, onPlayAgain, gym = null, onHome, onGymResult }) {
   const cpuSide = gym ? 1 : null;
   const cpuSkill = gym ? gym.leader.skill : 0;
+  // Gym/League presentation: the versus splash before the first move, the ace's entrance banner,
+  // and which in-battle lines the opponent has already said.
+  const [splashOpen, setSplashOpen] = useState(!!gym);
+  const [aceBanner, setAceBanner] = useState(null);
+  const announcedRef = useRef({ ace: false, last: false });
+  const aceIndex1 = gym ? rosters[1].findIndex(p => p.aceOf) : -1;
+  const aceIndices = [rosters[0].map((p, i) => (p.earnedAce ? i : -1)).filter(i => i >= 0), aceIndex1 >= 0 ? [aceIndex1] : []];
   const [battle, setBattle] = useState(() => initBattle(rosters[0], rosters[1], [trainers[0].name, trainers[1].name], gym ? gym.leader : null));
   const logEndRef = useRef(null);
   const mountedRef = useRef(true);
@@ -2792,6 +3032,7 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
 
   useEffect(() => {
     if (!audioEnabled || typeof window === 'undefined' || !window.speechSynthesis) return;
+    if (splashOpen) return; // start reading once the versus splash is dismissed
     const current = battle.log[battle.log.length - 1];
     if (!current) return;
     const isStart = current.event.type === 'start';
@@ -2805,7 +3046,7 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
     utterance.pitch = 1.0;
     window.speechSynthesis.speak(utterance);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [audioEnabled, battle.log.length, battle.log[0]?.aiText]);
+  }, [audioEnabled, battle.log.length, battle.log[0]?.aiText, splashOpen]);
 
   // The other live AI call: once the battle has a winner, fetch a trainer-focused closing epilogue.
   // The MVP + stats table below don't wait on this -- they're computed locally and shown instantly.
@@ -2887,7 +3128,7 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
   const handleContinue = () => setBattle(prev => revealNextBeat(prev));
 
   useEffect(() => {
-    if (!quickBattle || (!showAttackChoice && !showDefenseChoice)) return;
+    if (!quickBattle || (!showAttackChoice && !showDefenseChoice) || splashOpen || aceBanner) return;
     let timer;
     if (showAttackChoice && attackerSide !== cpuSide && !isKeyAttackMoment(attackerBattler)) {
       timer = setTimeout(() => {
@@ -2909,11 +3150,11 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
     }
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quickBattle, showAttackChoice, showDefenseChoice, attackerBattler, defenderBattler]);
+  }, [quickBattle, showAttackChoice, showDefenseChoice, attackerBattler, defenderBattler, splashOpen, aceBanner]);
 
   // VS Computer: whenever side 1 owes an action (switch in, attack, or defend), the leader takes it
   // after a short pause so it reads like they're thinking. Story beats still wait on CONTINUE.
-  const cpuOwesAction = cpuSide !== null && !hasMoreBeats && battle.winner === null && (
+  const cpuOwesAction = cpuSide !== null && !hasMoreBeats && battle.winner === null && !splashOpen && !aceBanner && (
     battle.needsSwitch.length > 0 ? battle.needsSwitch[0] === cpuSide
       : battle.pendingAttackMove === null ? attackerSide === cpuSide
       : defenderSide === cpuSide);
@@ -2926,21 +3167,70 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cpuOwesAction, battle.beatCounter, battle.pendingAttackMove, battle.needsSwitch.length]);
 
+  // The opponent's in-battle lines: once when their ace takes the field (with the entrance banner),
+  // and once when they're down to their last Pokémon -- skipped if that last one is an ace still
+  // waiting to come out, since its entrance line covers the moment.
+  useEffect(() => {
+    if (!gym || battle.winner !== null) return;
+    const said = announcedRef.current;
+    const team = battle.teams[1];
+    const alive = team.filter(m => !m.fainted);
+    const aceOut = aceIndex1 >= 0 && battle.active[1] === aceIndex1 && !team[aceIndex1].fainted;
+    const lines = [];
+    if (!said.ace && aceOut) {
+      said.ace = true;
+      lines.push(['ace', leaderLine(gym.leader, 'ace', { ace: team[aceIndex1].name })]);
+      setAceBanner(team[aceIndex1].name);
+      if (alive.length === 1) said.last = true;
+    }
+    if (!said.last && alive.length === 1 && team.length > 1) {
+      said.last = true;
+      const onlyAceLeftUnseen = aceIndex1 >= 0 && alive[0] === team[aceIndex1] && !said.ace;
+      if (!onlyAceLeftUnseen) lines.push(['last', leaderLine(gym.leader, 'last')]);
+    }
+    if (lines.length > 0) setBattle(prev => lines.reduce((s, [moment, text]) => appendLeaderBeat(s, gym.leader.name, moment, text), prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [battle]);
+
+  const closingLine = gym && battle.winner !== null
+    ? leaderLine(gym.leader, battle.winner === 1 ? 'win' : battle.winner === 0 ? (gym.challengerIsGuest && opponentKind(gym.leader) === 'gym' ? 'loseGuest' : 'lose') : 'draw')
+    : null;
+
+  if (gym && splashOpen) {
+    return (
+      <>
+        <ArenaBackdrop leader={gym.leader} />
+        <VersusSplash leader={gym.leader} trainers={trainers} rosters={rosters} onBegin={() => setSplashOpen(false)} />
+      </>
+    );
+  }
+
   return (
-    <div style={{ minHeight: '100vh', padding: '20px 16px 32px', maxWidth: 560, margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
-      <button onClick={onBack} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0, marginBottom: 16 }}>
+    <div style={{ minHeight: '100vh', padding: '20px 16px 32px', maxWidth: 560, margin: '0 auto', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
+      {gym && <ArenaBackdrop leader={gym.leader} />}
+      {gym && aceBanner && <AceBanner leader={gym.leader} aceName={aceBanner} onDone={() => setAceBanner(null)} />}
+      <button onClick={onBack} style={{ position: 'relative', alignSelf: 'flex-start', background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0, marginBottom: 16 }}>
         &larr; TEAMS
       </button>
 
-      <div style={{ display: 'flex', gap: 16, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${COLORS.hairline}` }}>
-        <BattlerPanel battler={battle.log[battle.log.length - 1].snapshotAfter[0]} align="left" />
+      <div style={{ position: 'relative', display: 'flex', gap: 16, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${gym ? hexA(opponentColor(gym.leader), 0.5) : COLORS.hairline}` }}>
+        <BattlerPanel battler={battle.log[battle.log.length - 1].snapshotAfter[0]} align="left" aceIndices={aceIndices[0]} />
         <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: 20, color: COLORS.ash, alignSelf: 'center' }}>VS</div>
-        <BattlerPanel battler={battle.log[battle.log.length - 1].snapshotAfter[1]} align="right" />
+        <BattlerPanel battler={battle.log[battle.log.length - 1].snapshotAfter[1]} align="right" aceIndices={aceIndices[1]} />
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14, maxHeight: 360, paddingRight: 4 }}>
+      <div style={{ position: 'relative', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14, maxHeight: 360, paddingRight: 4 }}>
         {battle.log.map((entry, i) => {
           const isLatest = i === battle.log.length - 1;
+          if (entry.event.type === 'leader_line') {
+            const lc = gym ? opponentColor(gym.leader) : COLORS.jadeBright;
+            return (
+              <div key={entry.id} className={isLatest ? 'finish-pop' : undefined} style={{ borderLeft: `3px solid ${lc}`, paddingLeft: 10, opacity: isLatest ? 1 : 0.5 }}>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.14em', color: lc, marginBottom: 2 }}>{entry.event.speaker.toUpperCase()}</div>
+                <div style={{ fontFamily: FONT_BODY, fontStyle: 'italic', fontSize: isLatest ? 16 : 13, lineHeight: 1.5, color: COLORS.paper, fontWeight: isLatest ? 500 : 400 }}>“{entry.mechanicalText}”</div>
+              </div>
+            );
+          }
           const isStart = entry.event.type === 'start';
           const stillWaitingForIntro = isStart && entry.aiText === null;
           const justLearnedFinishing = !!entry.event.learnedFinishing;
@@ -3007,6 +3297,13 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
             <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: 26, color: COLORS.jadeBright, marginBottom: 16 }}>
               {battle.winner === 'draw' ? "IT'S A DRAW!" : `${trainers[battle.winner].name.toUpperCase()} WINS!`}
             </div>
+
+            {closingLine && (
+              <div style={{ textAlign: 'left', borderLeft: `3px solid ${opponentColor(gym.leader)}`, paddingLeft: 10, marginBottom: 16 }}>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.14em', color: opponentColor(gym.leader), marginBottom: 2 }}>{gym.leader.name.toUpperCase()}</div>
+                <div style={{ fontFamily: FONT_BODY, fontStyle: 'italic', fontSize: 15, lineHeight: 1.5, color: COLORS.paper }}>“{closingLine}”</div>
+              </div>
+            )}
 
             {gym && <GymResultPanel gym={gym} result={gymResult} />}
 
@@ -3214,7 +3511,29 @@ export default function App() {
         .badge-pop { animation: badgePopKf 0.6s cubic-bezier(.2,.9,.3,1.2); }
         @keyframes loadingPulseKf { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
         .loading-pulse { animation: loadingPulseKf 1.3s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .screen, .finish-flash, .finish-pop, .loading-pulse, .badge-pop { animation: none; } }
+        @keyframes arenaWaves { to { background-position: 120px 0; } }
+        @keyframes arenaRise { to { background-position: 0 -120px; } }
+        @keyframes arenaFall { to { background-position: 0 120px; } }
+        @keyframes arenaPetals { to { background-position: 140px 140px; } }
+        @keyframes arenaHaze { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
+        @keyframes arenaPulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+        @keyframes arenaTwinkle { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+        @keyframes arenaFlicker { 0%, 88%, 100% { opacity: 1; } 90% { opacity: 0.35; } 92% { opacity: 1; } 94% { opacity: 0.5; } }
+        @keyframes vsSlideRKf { from { transform: translateX(60%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes vsSlideLKf { from { transform: translateX(-60%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes vsPopKf { 0% { transform: scale(2.2); opacity: 0; } 55% { transform: scale(0.92); opacity: 1; } 75% { transform: scale(1.06) rotate(-2deg); } 100% { transform: scale(1); } }
+        .vs-slide-r { animation: vsSlideRKf 0.45s cubic-bezier(.2,.8,.2,1); }
+        .vs-slide-l { animation: vsSlideLKf 0.45s cubic-bezier(.2,.8,.2,1); }
+        .vs-pop { animation: vsPopKf 0.6s 0.25s both; }
+        @keyframes aceSweepKf { from { transform: translateX(70%) skewY(-7deg); } 22% { transform: translateX(0) skewY(-7deg); } to { transform: translateX(-4%) skewY(-7deg); } }
+        @keyframes aceFadeKf { 0% { opacity: 0; } 10% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
+        .ace-sweep { transform: skewY(-7deg); animation: aceSweepKf 2s cubic-bezier(.2,.8,.2,1) both; }
+        .ace-fade { animation: aceFadeKf 2s linear both; }
+        @media (prefers-reduced-motion: reduce) {
+          .screen, .finish-flash, .finish-pop, .loading-pulse, .badge-pop, .arena-layer, .vs-slide-r, .vs-slide-l, .vs-pop { animation: none; }
+          .ace-sweep { animation: none; transform: skewY(-7deg); }
+          .ace-fade { animation: none; }
+        }
       `}</style>
       <div className="screen" key={phase}>
         {phase === 'title' && <TitleScreen onStart={() => setPhase('setup')} onStartCpu={() => setPhase('vs-setup')} />}

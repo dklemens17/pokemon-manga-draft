@@ -35,6 +35,8 @@ Every game deals a fresh pool of 15 Pokémon. Trainers snake-draft three each, t
 - **Professor Oak**: a special final battle in his lab in Pallet Town, which appears only after you beat Gary. His ace is Mew, and he lets you bring up to three of your earned aces instead of one. Beat him to enter the Hall of Fame.
 - Every League opponent fields a full six (two drafted, plus four of their own with their ace last). League wins are saved as progress and show on the scoreboard as **★ CHAMPION** or **★ HALL OF FAME**. Guests never see the League.
 
+**Battle presentation.** Every gym and League battle opens with a manga-style versus splash: the opponent's badge, title and taunt facing your team. Each arena has its own animated backdrop in the opponent's color (stone cracks for Brock, waves for Misty, embers for Blaine, falling snow for Lorelei, and so on). Opponents speak up when their ace takes the field, which also gets an entrance banner, when they're down to their last Pokémon, and when the battle ends. In every battle, two-player included, a row of pips under each Pokémon shows who's still standing. Animations switch off on phones set to reduce motion.
+
 ## Run it locally
 
 Requires Node 18 or newer.
