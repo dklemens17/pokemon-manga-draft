@@ -197,20 +197,22 @@ const BATTLE_STYLES = [
 
 // ===================== VS COMPUTER: GYM LEADERS & EXCLUSIVE ACES =====================
 // The eight Kanto Gym Leaders in the order Ash earned their badges in the original anime, each one
-// tougher than the last. The dials: `teamSize` (Brock and Misty field two Pokémon, as in their
-// battles with Ash; everyone else fields three), `skill` (how sharply the leader drafts and battles --
-// see the AI section), `trainedPct` (a flat stat boost on the leader's drafted Pokémon, like facing
+// tougher than the last. The challenger always fields six. Brock, Misty, Lt. Surge and Sabrina field
+// three (two drafted plus their ace); Erika, Koga, Blaine and Giovanni field a full six (two drafted,
+// three signature Pokémon of their own, and their ace) -- see the VS COMPUTER: DRAFT section.
+// The other dials: `skill` (how sharply the leader drafts and battles -- see the AI section),
+// `trainedPct` (a flat stat boost on the leader's drafted and signature Pokémon, like facing
 // higher-level teams) and the strength of the leader's ace. `loyalty` is personality rather than
 // difficulty: how strongly a leader sticks to their own type in the draft (Erika is the purest
 // Grass specialist of them all).
 //
-// The dials are set per gym so the OUTCOME climbs steadily, not so each dial climbs: some gyms are
-// naturally harder for type-counter drafting than others (the Bug/Ghost/Dark counters to Sabrina's
+// The dials are set per gym so the OUTCOME climbs steadily, not so each dial climbs: team size and
+// type matchups already make some gyms naturally harder (the Bug/Ghost/Dark counters to Sabrina's
 // Psychic types are mostly weak Pokémon, while Ground makes short work of Lt. Surge). Tuned with
-// simulated challenges against the way people actually play: a player who drafts for type advantage
-// (Water/Grass against Brock, and so on), plays sensibly, and brings their best-matched earned ace
-// wins about 76% vs Brock, 67% Misty, 63% Lt. Surge, 59% Sabrina, 51% Erika, 46% Koga, 39% Blaine
-// and 34% vs Giovanni. Drafting for stats as well as type pushes all of those higher.
+// simulated challenges against the way people actually play: a player who drafts six for type
+// advantage (Water/Grass against Brock, and so on), plays sensibly, and brings their best-matched
+// earned ace wins about 78% vs Brock, 68% Misty, 63% Lt. Surge, 57% Sabrina, 49% Erika, 45% Koga,
+// 39% Blaine and 32% vs Giovanni. Drafting for stats as well as type pushes all of those higher.
 //
 // Each ace is a fully evolved Pokémon of its leader's type that NEVER appears in the two-player
 // draft -- none of these species is in POKEMON_DB at any evolution stage. Beating a leader with a
@@ -228,37 +230,65 @@ const GYM_ACES = {
   giovanni: gymAce('giovanni', mon('Nidoking',   ['Poison','Ground'],  96,116,92,98,  ['Poison Jab','Dig'],['Horn Attack','Ice Punch'],['Megahorn','Sludge Bomb'], ['Earthquake','Fire Blast'], null)),
 };
 
+// Signature Pokémon: the rest of a six-Pokémon leader's team, used only by that leader. Like the
+// aces, none of these species appears in the two-player draft at any evolution stage, but unlike
+// the aces they're never earned. Each shares the leader's type and, where possible, is one the
+// leader used in the anime or the games. They don't evolve mid-battle.
+function gymSignature(leaderId, p) { return { ...p, signatureOf: leaderId }; }
+const GYM_SIGNATURES = {
+  erika: [
+    gymSignature('erika', mon('Tangela',    ['Grass'],            45,52,77,42,   ['Vine Whip','Rock Tomb'],['Leafage','Slam'],['Magical Leaf','Seed Bomb'], ['Solar Beam'], null)),
+    gymSignature('erika', mon('Exeggutor',  ['Grass','Psychic'],  59,59,53,34,   ['Seed Bomb','Confusion'],['Headbutt','Psybeam'],['Zen Headbutt','Magical Leaf'], ['Solar Beam','Psychic'], null)),
+    gymSignature('erika', mon('Roserade',   ['Grass','Poison'],   42,74,49,63,   ['Magical Leaf','Poison Jab'],['Leafage','Acid'],['Sludge Bomb','Shadow Ball'], ['Solar Beam'], null)),
+  ],
+  koga: [
+    gymSignature('koga',  mon('Venomoth',   ['Bug','Poison'],     58,71,54,75,   ['Signal Beam','Psybeam'],['Bug Bite','Poison Sting'],['X-Scissor','Sludge Bomb'], ['Psychic'], null)),
+    gymSignature('koga',  mon('Muk',        ['Poison'],           73,69,52,35,   ['Poison Jab','Rock Tomb'],['Acid','Bite'],['Gunk Shot','Fire Punch'], ['Sludge Bomb'], null)),
+    gymSignature('koga',  mon('Tentacruel', ['Water','Poison'],   58,58,51,72,   ['Water Pulse','Poison Jab'],['Acid','Bubble'],['Surf','Sludge Bomb'], ['Hydro Pump','Ice Beam'], null)),
+  ],
+  blaine: [
+    gymSignature('blaine', mon('Rapidash',  ['Fire'],             55,84,59,89,   ['Flame Wheel','Horn Attack'],['Ember','Quick Attack'],['Fire Fang','Body Slam'], ['Fire Blast'], null)),
+    gymSignature('blaine', mon('Magmar',    ['Fire'],             53,77,53,75,   ['Fire Punch','Karate Chop'],['Ember','Brick Break'],['Flamethrower','Thunder Punch'], ['Fire Blast'], null)),
+    gymSignature('blaine', mon('Torkoal',   ['Fire'],             49,60,98,14,   ['Ember','Body Slam'],['Fire Fang','Rock Tomb'],['Flamethrower','Rock Slide'], ['Fire Blast','Earthquake'], null)),
+  ],
+  giovanni: [
+    gymSignature('giovanni', mon('Dugtrio',   ['Ground'],         49,89,53,106, ['Dig','Scratch'],['Mud Slap','Bulldoze'],['Rock Slide','Feint Attack'], ['Earthquake'], null)),
+    gymSignature('giovanni', mon('Nidoqueen', ['Poison','Ground'], 60,61,58,51,  ['Poison Jab','Bulldoze'],['Body Slam','Ice Punch'],['Sludge Bomb','Thunder Punch'], ['Earthquake','Ice Beam'], null)),
+    gymSignature('giovanni', mon('Hippowdon', ['Ground'],         59,62,66,29,  ['Bulldoze','Crunch'],['Bite','Rock Tomb'],['Dig','Stone Edge'], ['Earthquake'], null)),
+  ],
+};
+
 const GYM_LEADERS = [
   { id: 'brock', name: 'Brock', city: 'Pewter City', badge: 'Boulder Badge', type: 'Rock',
-    skill: 0.05, loyalty: 1.6, trainedPct: 0, teamSize: 2,
+    skill: 0.45, loyalty: 1.6, trainedPct: 0,
     style: { name: 'Gym Leader', desc: 'Rock-solid and patient, built to outlast' },
     taunt: `My Pokémon are as hard as the mountains around Pewter City. Let's see if you can crack them.` },
   { id: 'misty', name: 'Misty', city: 'Cerulean City', badge: 'Cascade Badge', type: 'Water',
-    skill: 0.10, loyalty: 1.4, trainedPct: 0, teamSize: 2,
+    skill: 0.32, loyalty: 1.4, trainedPct: 0,
     style: { name: 'Gym Leader', desc: 'Fiery temper, fluid and relentless in battle' },
     taunt: `Water Pokémon are the most beautiful AND the toughest. Don't you dare go easy on me!` },
   { id: 'surge', name: 'Lt. Surge', city: 'Vermilion City', badge: 'Thunder Badge', type: 'Electric',
-    skill: 0.20, loyalty: 1.2, trainedPct: 0, teamSize: 3,
+    skill: 0.40, loyalty: 1.2, trainedPct: 0,
     style: { name: 'Gym Leader', desc: 'Loud, brash, and lightning-fast' },
     taunt: `Ha! Lightning strikes fast, kid. Blink and you've already lost.` },
   { id: 'sabrina', name: 'Sabrina', city: 'Saffron City', badge: 'Marsh Badge', type: 'Psychic',
-    skill: 0.00, loyalty: 1.0, trainedPct: 3, teamSize: 3,
+    skill: 0.20, loyalty: 1.0, trainedPct: 5,
     style: { name: 'Gym Leader', desc: 'Cold, calm, and always a step ahead' },
     taunt: `I already know how this battle ends. Show me anyway.` },
   { id: 'erika', name: 'Erika', city: 'Celadon City', badge: 'Rainbow Badge', type: 'Grass',
-    skill: 0.15, loyalty: 2.0, trainedPct: 3, teamSize: 3,
+    skill: 0.27, loyalty: 2.0, trainedPct: 5,
     style: { name: 'Gym Leader', desc: 'Graceful and gentle, with roots that run deep' },
     taunt: `Oh my, a challenger. Then let my garden show you how strong gentle things can be.` },
   { id: 'koga', name: 'Koga', city: 'Fuchsia City', badge: 'Soul Badge', type: 'Poison',
-    skill: 0.10, loyalty: 0.6, trainedPct: 6, teamSize: 3,
+    skill: 0.05, loyalty: 0.6, trainedPct: 7,
     style: { name: 'Gym Leader', desc: 'A ninja master who strikes from the shadows' },
     taunt: `A ninja strikes from where you least expect it. Poison works the very same way.` },
   { id: 'blaine', name: 'Blaine', city: 'Cinnabar Island', badge: 'Volcano Badge', type: 'Fire',
-    skill: 0.20, loyalty: 0.4, trainedPct: 8, teamSize: 3,
+    skill: 0.26, loyalty: 0.4, trainedPct: 9,
     style: { name: 'Gym Leader', desc: 'A hot-headed genius who loves a riddle and a blaze' },
     taunt: `Hah! You've got fire in your eyes. Let's see if it survives the volcano!` },
   { id: 'giovanni', name: 'Giovanni', city: 'Viridian City', badge: 'Earth Badge', type: 'Ground',
-    skill: 0.05, loyalty: 0.2, trainedPct: 9, teamSize: 3,
+    skill: 0.08, loyalty: 0.2, trainedPct: 10,
     style: { name: 'Gym Leader', desc: 'Ruthless, calculating, and utterly unshaken' },
     taunt: `Seven badges. Impressive. It ends here.` },
 ];
@@ -294,6 +324,16 @@ function getSnakeOrder(numPlayers, rounds) {
 }
 
 // ===================== VS COMPUTER: DRAFT =====================
+// In the gym challenge the challenger always fields a full team of six. A leader fields three or six:
+// every leader drafts exactly two from the shared pool, their ace is always on the team, and the
+// later leaders round out a full six with three signature Pokémon of their own (GYM_SIGNATURES).
+// Keeping the leader's draft at two keeps the pool at 15 and the leader's team true to their type.
+const GYM_CHALLENGER_TEAM_SIZE = 6;
+const GYM_LEADER_DRAFT_PICKS = 2;
+
+function gymSignatures(leaderId) { return GYM_SIGNATURES[leaderId] || []; }
+function gymTeamSize(leader) { return GYM_LEADER_DRAFT_PICKS + 1 + gymSignatures(leader.id).length; }
+
 // A gym's pool always holds a few Pokémon of the leader's specialty type (that's what a Gym Leader
 // reaches for), topped up with random picks. Like the two-player draft, it's 15 Pokémon.
 function getGymPool(leader, count = 15) {
@@ -303,13 +343,27 @@ function getGymPool(leader, count = 15) {
   return shuffle([...onType, ...rest]);
 }
 
-// The human always picks first, then the leader makes all of their picks, then the human finishes.
-// The human drafts 3 (2 with a brought-along ace); the leader drafts teamSize - 1, since their own
-// ace fills the last slot. e.g. Brock (team of 2): [0, 1, 0, 0]; a team of 3: [0, 1, 1, 0, 0].
-function getGymPickOrder(humanBringsAce, leaderTeamSize = 3) {
-  const humanPicks = humanBringsAce ? 2 : 3;
-  const leaderPicks = Math.max(0, leaderTeamSize - 1);
-  return [0, ...Array(leaderPicks).fill(1), ...Array(humanPicks - 1).fill(0)];
+// Snake draft between the challenger (side 0, always first) and the leader (side 1): 0,1 then 1,0
+// then 0,1..., and once one side is done the other finishes. The challenger drafts 6 (5 with a
+// brought-along ace); the leader drafts 2. So: [0,1,1,0,0,0,0,0], or [0,1,1,0,0,0,0] with an ace.
+function getGymPickOrder(humanBringsAce) {
+  const left = [GYM_CHALLENGER_TEAM_SIZE - (humanBringsAce ? 1 : 0), GYM_LEADER_DRAFT_PICKS];
+  const order = [];
+  for (let round = 0; left[0] + left[1] > 0; round++) {
+    for (const side of (round % 2 === 0 ? [0, 1] : [1, 0])) {
+      if (left[side] > 0) { order.push(side); left[side] -= 1; }
+    }
+  }
+  return order;
+}
+
+// Both teams before the draft: the challenger starts with their brought-along ace (if any); the
+// leader starts with their signature Pokémon and their ace.
+function buildGymStartRosters(leaderId, aceId) {
+  return [
+    aceId ? [{ ...GYM_ACES[aceId], earnedAce: true }] : [],
+    [...gymSignatures(leaderId), GYM_ACES[leaderId]],
+  ];
 }
 
 // How hard a Pokémon hits another with its base kit -- used only for draft-time judgement.
@@ -365,8 +419,8 @@ function standInDraftPick(pool, ownRoster, oppRoster, skill) {
   return cpuDraftPick(pool, ownRoster, oppRoster, { skill, loyalty: 0, type: null });
 }
 
-// Gym-trained Pokémon: the leader's drafted picks get a flat stat boost (their ace doesn't -- it
-// stays exactly the Pokémon a challenger earns). Shown openly on the team review screen.
+// Gym-trained Pokémon: the leader's drafted picks and signature Pokémon get a flat stat boost (their
+// ace doesn't -- it stays exactly the Pokémon a challenger earns). Shown openly on the team screen.
 function applyGymTraining(p, pct) {
   if (!pct) return p;
   const m = 1 + pct / 100;
@@ -375,7 +429,8 @@ function applyGymTraining(p, pct) {
 }
 
 // Once the gym draft is done: the challenger's brought-along ace moves to the back of their team,
-// the leader's drafted picks get their gym training, and the leader settles their batting order.
+// the leader's drafted picks and signature Pokémon get their gym training, and the leader settles
+// their batting order.
 function finalizeGymRosters(rosters, leader) {
   const human = [...rosters[0].filter(p => !p.aceOf), ...rosters[0].filter(p => p.aceOf)];
   const cpu = cpuOrderRoster(rosters[1].map(p => (p.aceOf ? p : applyGymTraining(p, leader.trainedPct))), human[0], leader);
@@ -1354,8 +1409,13 @@ function PokemonCard({ pokemon, onClick, interactive = true, selected = false })
       <div style={{ display: 'flex', gap: 6 }}>
         {pokemon.types.map(t => <StampBadge key={t} type={t} size={26} />)}
       </div>
-      {(pokemon.aceOf || pokemon.gymTrained > 0) && (
+      {(pokemon.aceOf || pokemon.signatureOf || pokemon.gymTrained > 0) && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {pokemon.signatureOf && (
+            <span style={{ fontFamily: FONT_MONO, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: TYPE_COLORS[getLeader(pokemon.signatureOf).type], border: `1px solid ${TYPE_COLORS[getLeader(pokemon.signatureOf).type]}`, borderRadius: 10, padding: '1px 7px' }}>
+              {getLeader(pokemon.signatureOf).name.toUpperCase()} EXCLUSIVE
+            </span>
+          )}
           {pokemon.aceOf && (
             <span style={{ fontFamily: FONT_MONO, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: COLORS.ink, background: TYPE_COLORS[getLeader(pokemon.aceOf).type], borderRadius: 10, padding: '2px 8px' }}>
               ★ {pokemon.earnedAce ? `${getLeader(pokemon.aceOf).badge.toUpperCase()} ACE` : `${getLeader(pokemon.aceOf).name.toUpperCase()}'S ACE`}
@@ -1951,7 +2011,7 @@ function GymHubScreen({ challenger, onChallenge, onBack }) {
           “{leader.taunt}” <span style={{ fontStyle: 'normal', color: COLORS.ash }}>— {leader.name}</span>
         </div>
         <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.ash, marginTop: 8, letterSpacing: '0.05em' }}>
-          ACE: {GYM_ACES[leader.id].name.toUpperCase()} · FIELDS {leader.teamSize === 2 ? 'TWO' : 'THREE'} POKÉMON{leader.trainedPct > 0 ? ` · GYM-TRAINED +${leader.trainedPct}%` : ''}
+          ACE: {GYM_ACES[leader.id].name.toUpperCase()} · FIELDS {gymTeamSize(leader) === 6 ? 'SIX' : 'THREE'} POKÉMON{leader.trainedPct > 0 ? ` · GYM-TRAINED +${leader.trainedPct}%` : ''}
         </div>
       </div>
 
@@ -1972,8 +2032,8 @@ function GymHubScreen({ challenger, onChallenge, onBack }) {
               </div>
               <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: COLORS.ash, marginTop: 8, lineHeight: 1.45 }}>
                 {chosenAce
-                  ? `${GYM_ACES[chosenAce].name} takes one of your three slots, so you'll draft two.`
-                  : earned.includes(activeId) ? `${leader.name}'s own ace can't be brought to ${leader.name}'s gym.` : 'Bringing an ace means drafting two instead of three.'}
+                  ? `${GYM_ACES[chosenAce].name} takes one of your six slots, so you'll draft five.`
+                  : earned.includes(activeId) ? `${leader.name}'s own ace can't be brought to ${leader.name}'s gym.` : 'Bringing an ace means drafting five instead of six.'}
               </div>
             </>
           )}
@@ -2037,7 +2097,7 @@ function DraftScreen({ trainers, pool, rosters, pickOrder, pickIndex, onPick, on
           {rosters.map((roster, i) => (
             <div key={i} style={{ flex: 1, display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: i === 1 ? 'flex-end' : 'flex-start' }}>
               {roster.map(p => (
-                <div key={p.name} style={{ fontSize: 9, fontFamily: FONT_MONO, color: p.aceOf ? COLORS.paper : COLORS.ash, border: `1px solid ${p.aceOf ? TYPE_COLORS[getLeader(p.aceOf).type] : COLORS.hairline}`, borderRadius: 20, padding: '3px 8px' }}>
+                <div key={p.name} style={{ fontSize: 9, fontFamily: FONT_MONO, color: (p.aceOf || p.signatureOf) ? COLORS.paper : COLORS.ash, border: `1px solid ${(p.aceOf || p.signatureOf) ? TYPE_COLORS[getLeader(p.aceOf || p.signatureOf).type] : COLORS.hairline}`, borderRadius: 20, padding: '2px 7px' }}>
                   {p.aceOf ? '★ ' : ''}{p.name}
                 </div>
               ))}
@@ -2108,14 +2168,14 @@ function ReviewScreen({ trainers, rosters, onBattle, onReset, gym = null, backLa
             </div>
           </div>
           <div style={{ fontFamily: FONT_BODY, fontSize: 14, fontStyle: 'italic', color: COLORS.paper, lineHeight: 1.5 }}>“{gym.taunt}”</div>
-          {gym.teamSize === 2 && (
-            <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.jadeBright, marginTop: 10, lineHeight: 1.4 }}>
-              {gym.name} fields two Pokémon against your three, just like the battle with Ash.
-            </div>
-          )}
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.jadeBright, marginTop: 10, lineHeight: 1.4 }}>
+            {gymTeamSize(gym) === 6
+              ? `${gym.name} fields a full six against your six: two drafted, three gym exclusives, and their ace.`
+              : `${gym.name} fields three Pokémon against your six: two drafted, plus their ace.`}
+          </div>
           {gym.trainedPct > 0 && (
             <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.hpMid, marginTop: 10, lineHeight: 1.4 }}>
-              {gym.name}'s drafted Pokémon are gym-trained: +{gym.trainedPct}% to every stat.
+              {gym.name}'s team is gym-trained: +{gym.trainedPct}% to every stat on everyone but the ace.
             </div>
           )}
         </div>
@@ -2593,10 +2653,10 @@ export default function App() {
       { name: leader.name, isGuest: false, isCpu: true, style: leader.style },
     ]);
     setGym({ leaderId, aceId: aceId || null });
-    setPool(getGymPool(leader, 15));
-    setPickOrder(getGymPickOrder(!!aceId, leader.teamSize || 3));
+    setPool(getGymPool(leader));
+    setPickOrder(getGymPickOrder(!!aceId));
     setPickIndex(0);
-    setRosters([aceId ? [{ ...GYM_ACES[aceId], earnedAce: true }] : [], [GYM_ACES[leaderId]]]);
+    setRosters(buildGymStartRosters(leaderId, aceId));
     setPhase('drafting');
   };
 

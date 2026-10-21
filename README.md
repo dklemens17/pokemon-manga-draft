@@ -10,20 +10,21 @@ Every game deals a fresh pool of 15 Pokémon. Trainers snake-draft three each, t
 
 **VS Computer: Gym Challenge.** Take on the eight Kanto Gym Leaders in the order Ash earned his badges in the original anime. Each leader drafts and battles with their own skill level, so the ladder gets steadily harder.
 
-| # | Leader | Gym | Badge | Type | Exclusive ace |
-|---|--------|-----|-------|------|---------------|
-| 1 | Brock | Pewter City | Boulder | Rock | Rhyperior |
-| 2 | Misty | Cerulean City | Cascade | Water | Starmie |
-| 3 | Lt. Surge | Vermilion City | Thunder | Electric | Electivire |
-| 4 | Sabrina | Saffron City | Marsh | Psychic | Mr. Mime |
-| 5 | Erika | Celadon City | Rainbow | Grass | Bellossom |
-| 6 | Koga | Fuchsia City | Soul | Poison | Crobat |
-| 7 | Blaine | Cinnabar Island | Volcano | Fire | Magmortar |
-| 8 | Giovanni | Viridian City | Earth | Ground | Nidoking |
+| # | Leader | Gym | Badge | Type | Team | Exclusive ace | Gym exclusives |
+|---|--------|-----|-------|------|------|---------------|----------------|
+| 1 | Brock | Pewter City | Boulder | Rock | 3 | Rhyperior | |
+| 2 | Misty | Cerulean City | Cascade | Water | 3 | Starmie | |
+| 3 | Lt. Surge | Vermilion City | Thunder | Electric | 3 | Electivire | |
+| 4 | Sabrina | Saffron City | Marsh | Psychic | 3 | Mr. Mime | |
+| 5 | Erika | Celadon City | Rainbow | Grass | 6 | Bellossom | Tangela, Exeggutor, Roserade |
+| 6 | Koga | Fuchsia City | Soul | Poison | 6 | Crobat | Venomoth, Muk, Tentacruel |
+| 7 | Blaine | Cinnabar Island | Volcano | Fire | 6 | Magmortar | Rapidash, Magmar, Torkoal |
+| 8 | Giovanni | Viridian City | Earth | Ground | 6 | Nidoking | Dugtrio, Nidoqueen, Hippowdon |
 
 - Gyms open one at a time for a named trainer. Guests can practice against any gym, but nothing is saved.
-- Each leader fields a fully evolved **ace** that never appears in the 2-player draft. Beat the leader and you earn their badge, and the ace becomes yours to bring into later VS Computer battles. It takes one of your three slots.
-- Brock and Misty field two Pokémon against your three, like their battles with Ash; every later leader fields three. Later leaders also bring stronger aces and a small "gym-trained" stat boost on their drafted Pokémon (shown on the team screen).
+- You always field six in the gym challenge. Brock, Misty, Lt. Surge and Sabrina field three; Erika, Koga, Blaine and Giovanni field a full six. Every leader drafts just two from the shared pool. The rest of their team is their ace plus, for the six-Pokémon leaders, three gym-exclusive Pokémon of their own type.
+- Each leader's **ace** is a fully evolved Pokémon that never appears in the 2-player draft. Beat the leader and you earn their badge, and the ace becomes yours to bring into later VS Computer battles. It takes one of your six slots. Gym exclusives are never earned.
+- Later leaders also bring stronger aces and a small "gym-trained" stat boost on everyone but their ace (shown on the team screen).
 - Difficulty is tuned by simulating players who draft for type advantage (Water and Grass against Brock, and so on). Such a player wins about three times in four against Brock, about half the time against Erika, and about one in three against Giovanni. Drafting for stats as well as type does better.
 - Gym battles never change your scoreboard record or grade. Badges show as colored dots next to your name on the scoreboard.
 
