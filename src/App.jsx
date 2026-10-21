@@ -172,15 +172,21 @@ const POKEMON_DB = [
   mon('Sandshrew', ['Ground'], 50,75,85,40, ['Sand Tomb','Rock Throw'],['Scratch','Night Slash'],['Dig','Rock Slide'], ['Earth Power'], {name:'Sandslash', types:['Ground'], mult:1.3}),
   mon('Vulpix', ['Fire'], 38,41,40,65, ['Fire Spin','Powder Snow'],['Quick Attack','Flame Burst'],['Heat Wave','Confusion'], ['Inferno'], {name:'Ninetales', types:['Fire'], mult:1.35}),
   mon('Growlithe', ['Fire'], 55,70,45,60, ['Ember','Crunch'],['Bite','Fire Fang'],['Flame Wheel','Swift'], ['Flare Blitz'], {name:'Arcanine', types:['Fire'], mult:1.4}),
-  mon('Poliwag', ['Water'], 40,50,40,90, ['Water Gun','Ice Punch'],['Bubble','Rock Smash'],['Mega Punch','Waterfall'], ['Hydro Pump'], {name:'Poliwhirl', types:['Water'], mult:1.25, evolvesTo:{name:'Poliwrath', types:['Water','Fighting'], mult:1.4}}),
+  mon('Poliwag', ['Water'], 40,50,40,90, ['Water Gun','Ice Punch'],['Bubble','Rock Smash'],['Mega Punch','Waterfall'], ['Hydro Pump'], {name:'Poliwhirl', types:['Water'], mult:1.25, evolvesTo:{branch:[
+    {name:'Poliwrath', types:['Water','Fighting'], note:'A Water Stone sets the swirl on its belly spinning.'},
+    {name:'Politoed', types:['Water'], note:"A King's Rock settles onto its head like a crown."},
+  ], mult:1.4}}),
   mon('Abra', ['Psychic'], 30,20,15,90, ['Confusion','Shadow Ball'],['Psybeam','Feint Attack'],['Psyshock','Extrasensory'], ['Future Sight'], {name:'Kadabra', types:['Psychic'], mult:1.35, evolvesTo:{name:'Alakazam', types:['Psychic'], mult:1.4}}),
   mon('Machop', ['Fighting'], 70,80,50,35, ['Karate Chop','Ice Punch'],['Force Palm','Rock Slide'],['Cross Chop','Brick Break'], ['Dynamic Punch'], {name:'Machoke', types:['Fighting'], mult:1.3, evolvesTo:{name:'Machamp', types:['Fighting'], mult:1.4}}),
   mon('Geodude', ['Rock','Ground'], 40,80,100,20, ['Rock Throw','Sand Tomb'],['Tackle','Mud Shot'],['Rock Blast','Dig'], ['Head Smash'], {name:'Graveler', types:['Rock','Ground'], mult:1.3, evolvesTo:{name:'Golem', types:['Rock','Ground'], mult:1.4}}),
   mon('Gastly', ['Ghost','Poison'], 30,35,30,80, ['Lick','Sludge Bomb'],['Astonish','Shadow Punch'],['Shadow Ball','Clear Smog'], ['Phantom Force'], {name:'Haunter', types:['Ghost','Poison'], mult:1.3, evolvesTo:{name:'Gengar', types:['Ghost','Poison'], mult:1.4}}),
   mon('Drowzee', ['Psychic'], 50,45,65,42, ['Confusion','Icy Wind'],['Headbutt','Take Down'],['Psychic','Zen Headbutt'], ['Dream Eater'], {name:'Hypno', types:['Psychic'], mult:1.3}),
-  mon('Magnemite', ['Electric','Steel'], 35,35,70,45, ['Thunder Shock','Flash Cannon'],['Metal Claw','Electro Ball'],['Wild Charge','Magnet Bomb'], ['Thunder'], {name:'Magneton', types:['Electric','Steel'], mult:1.3}),
+  mon('Magnemite', ['Electric','Steel'], 35,35,70,45, ['Thunder Shock','Flash Cannon'],['Metal Claw','Electro Ball'],['Wild Charge','Magnet Bomb'], ['Thunder'], {name:'Magneton', types:['Electric','Steel'], mult:1.3, evolvesTo:{name:'Magnezone', types:['Electric','Steel'], mult:1.3}}),
   mon('Onix', ['Rock','Ground'], 35,45,120,70, ['Smack Down','Sand Tomb'],['Tackle','Iron Tail'],['Rock Blast','Mud Shot'], ['Head Smash','High Horsepower'], {name:'Steelix', types:['Steel','Ground'], mult:1.35}),
-  mon('Scyther', ['Bug','Flying'], 70,110,80,105, ['Quick Attack','Smart Strike'],['Acrobatics','Wing Attack'],['X-Scissor','Fury Cutter'], ['Megahorn','Hurricane'], {name:'Scizor', types:['Bug','Steel'], mult:1.35}),
+  mon('Scyther', ['Bug','Flying'], 70,110,80,105, ['Quick Attack','Smart Strike'],['Acrobatics','Wing Attack'],['X-Scissor','Fury Cutter'], ['Megahorn','Hurricane'], {branch:[
+    {name:'Scizor', types:['Bug','Steel'], note:'A Metal Coat hardens its body into steel.'},
+    {name:'Kleavor', types:['Bug','Rock'], note:'A Black Augurite splits its scythes into stone axes.'},
+  ], mult:1.35}),
   mon('Dratini', ['Dragon'], 41,64,45,50, ['Dragon Rage','Aqua Tail'],['Twister','Icy Wind'],['Dragon Pulse','Iron Tail'], ['Draco Meteor'], {name:'Dragonair', types:['Dragon'], mult:1.3, evolvesTo:{name:'Dragonite', types:['Dragon','Flying'], mult:1.45}}),
   mon('Chikorita', ['Grass'], 45,49,65,32, ['Trailblaze','Swift'],['Tackle','Body Slam'],['Razor Leaf','Magical Leaf'], ['Solar Beam'], {name:'Bayleef', types:['Grass'], mult:1.25, evolvesTo:{name:'Meganium', types:['Grass'], mult:1.35}}),
   mon('Cyndaquil', ['Fire'], 39,52,43,65, ['Flame Charge','Stomping Tantrum'],['Scratch','Incinerate'],['Flamethrower','Flame Wheel'], ['Inferno'], {name:'Quilava', types:['Fire'], mult:1.3, evolvesTo:{name:'Typhlosion', types:['Fire'], mult:1.4}}),
@@ -194,17 +200,20 @@ const POKEMON_DB = [
   mon('Hoppip', ['Grass','Flying'], 35,35,40,50, ['Gust','Giga Drain'],['Bullet Seed','Air Cutter'],['Air Slash','Seed Bomb'], ['Solar Beam'], {name:'Skiploom', types:['Grass','Flying'], mult:1.2, evolvesTo:{name:'Jumpluff', types:['Grass','Flying'], mult:1.3}}),
   mon('Wooper', ['Water','Ground'], 55,45,45,15, ['Whirlpool','Mud Shot'],['Sand Tomb','Chilling Water'],['Earth Power','Aqua Tail'], ['Hydro Pump'], {name:'Quagsire', types:['Water','Ground'], mult:1.3}),
   mon('Snubbull', ['Fairy'], 60,80,50,30, ['Fairy Wind','Knock Off'],['Covet','Headbutt'],['Play Rough','Crunch'], ['Dazzling Gleam'], {name:'Granbull', types:['Fairy'], mult:1.3}),
-  mon('Teddiursa', ['Normal'], 60,80,50,50, ['Fury Swipes','Brutal Swing'],['Slash','Crush Claw'],['Mega Punch','Throat Chop'], ['Giga Impact'], {name:'Ursaring', types:['Normal'], mult:1.35}),
+  mon('Teddiursa', ['Normal'], 60,80,50,50, ['Fury Swipes','Brutal Swing'],['Slash','Crush Claw'],['Mega Punch','Throat Chop'], ['Giga Impact'], {name:'Ursaring', types:['Normal'], mult:1.35, evolvesTo:{name:'Ursaluna', types:['Ground','Normal'], mult:1.3}}),
   mon('Houndour', ['Dark','Fire'], 45,60,30,65, ['Ember','Dark Pulse'],['Brutal Swing','Flame Burst'],['Inferno','Assurance'], ['Foul Play'], {name:'Houndoom', types:['Dark','Fire'], mult:1.3}),
   mon('Larvitar', ['Rock','Ground'], 50,64,50,41, ['Rock Tomb','Sand Tomb'],['Brutal Swing','Throat Chop'],['Rock Blast','Mud Shot'], ['Stone Edge'], {name:'Pupitar', types:['Rock','Ground'], mult:1.3, evolvesTo:{name:'Tyranitar', types:['Rock','Dark'], mult:1.45}}),
-  mon('Ralts', ['Psychic','Fairy'], 30,25,25,40, ['Psywave','Disarming Voice'],['Fairy Wind','Extrasensory'],['Psychic','Draining Kiss'], ['Future Sight'], {name:'Kirlia', types:['Psychic','Fairy'], mult:1.25, evolvesTo:{name:'Gardevoir', types:['Psychic','Fairy'], mult:1.4}}),
+  mon('Ralts', ['Psychic','Fairy'], 30,25,25,40, ['Psywave','Disarming Voice'],['Fairy Wind','Extrasensory'],['Psychic','Draining Kiss'], ['Future Sight'], {name:'Kirlia', types:['Psychic','Fairy'], mult:1.25, evolvesTo:{branch:[
+    {name:'Gardevoir', types:['Psychic','Fairy'], note:'It vows to protect its trainer with everything it has.'},
+    {name:'Gallade', types:['Psychic','Fighting'], note:'A Dawn Stone flashes, and blades extend from its arms.'},
+  ], mult:1.4}}),
   mon('Poochyena', ['Dark'], 35,55,35,35, ['Sucker Punch','Headbutt'],['Tackle','Assurance'],['Dark Pulse','Take Down'], ['Foul Play'], {name:'Mightyena', types:['Dark'], mult:1.3}),
-  mon('Swinub', ['Ice','Ground'], 50,50,40,50, ['Powder Snow','Mud Shot'],['Mud Slap','Icicle Spear'],['Frost Breath','Mud Bomb'], ['Blizzard'], {name:'Piloswine', types:['Ice','Ground'], mult:1.3}),
+  mon('Swinub', ['Ice','Ground'], 50,50,40,50, ['Powder Snow','Mud Shot'],['Mud Slap','Icicle Spear'],['Frost Breath','Mud Bomb'], ['Blizzard'], {name:'Piloswine', types:['Ice','Ground'], mult:1.3, evolvesTo:{name:'Mamoswine', types:['Ice','Ground'], mult:1.35}}),
   mon('Oddish', ['Grass','Poison'], 45,50,55,30, ['Mega Drain','Gunk Shot'],['Acid','Absorb'],['Magical Leaf','Sludge'], ['Petal Dance'], {name:'Gloom', types:['Grass','Poison'], mult:1.25, evolvesTo:{name:'Vileplume', types:['Grass','Poison'], mult:1.35}}),
   mon('Bellsprout', ['Grass','Poison'], 50,75,35,40, ['Vine Whip','Poison Jab'],['Acid','Giga Drain'],['Razor Leaf','Gunk Shot'], ['Power Whip'], {name:'Weepinbell', types:['Grass','Poison'], mult:1.25, evolvesTo:{name:'Victreebel', types:['Grass','Poison'], mult:1.35}}),
   mon('Meowth', ['Normal'], 40,45,35,90, ['Fury Swipes','Assurance'],['Feint Attack','Slam'],['Slash','Dark Pulse'], ['Hyper Beam'], {name:'Persian', types:['Normal'], mult:1.3}),
   mon('Psyduck', ['Water'], 50,52,48,55, ['Water Gun','Zen Headbutt'],['Confusion','Whirlpool'],['Dive','Ice Punch'], ['Hydro Pump'], {name:'Golduck', types:['Water'], mult:1.3}),
-  mon('Mankey', ['Fighting'], 40,80,35,70, ['Karate Chop','Throat Chop'],['Low Kick','Brick Break'],['Cross Chop','Rock Slide'], ['Superpower'], {name:'Primeape', types:['Fighting'], mult:1.3}),
+  mon('Mankey', ['Fighting'], 40,80,35,70, ['Karate Chop','Throat Chop'],['Low Kick','Brick Break'],['Cross Chop','Rock Slide'], ['Superpower'], {name:'Primeape', types:['Fighting'], mult:1.3, evolvesTo:{name:'Annihilape', types:['Fighting','Ghost'], mult:1.35}}),
   mon('Doduo', ['Normal','Flying'], 35,85,45,75, ['Peck','Stomp'],['Fury Attack','Pluck'],['Dual Wingbeat','Drill Peck'], ['Giga Impact'], {name:'Dodrio', types:['Normal','Flying'], mult:1.25}),
   mon('Shellder', ['Water'], 35,65,100,40, ['Chilling Water','Aurora Beam'],['Bite','Icicle Spear'],['Razor Shell','Ice Shard'], ['Hydro Pump'], {name:'Cloyster', types:['Water','Ice'], mult:1.35}),
   mon('Krabby', ['Water'], 35,105,90,50, ['Bubble','Ice Punch'],['Whirlpool','Knock Off'],['Razor Shell','Bubble Beam'], ['Crabhammer'], {name:'Kingler', types:['Water'], mult:1.3}),
@@ -224,7 +233,7 @@ const POKEMON_DB = [
   mon('Smoochum', ['Ice','Psychic'], 45,30,15,65, ['Powder Snow','Heart Stamp'],['Psywave','Icicle Spear'],['Icicle Crash','Extrasensory'], ['Blizzard'], {name:'Jynx', types:['Ice','Psychic'], mult:1.3}),
   mon('Ditto', ['Normal'], 48,48,48,48, ['Transform','Tackle'],['Swift','Slam'],['Double Edge','Quick Attack'], ['Hyper Beam','Earthquake'], null),
   mon('Aerodactyl', ['Rock','Flying'], 80,95,65,115, ['Wing Attack','Ice Fang'],['Smack Down','Dual Wingbeat'],['Rock Blast','Crunch'], ['Stone Edge','Brave Bird'], null),
-  mon('Girafarig', ['Normal','Psychic'], 70,80,65,85, ['Psywave','Double Hit'],['Stomp','Psycho Cut'],['Psychic','Crunch'], ['Hyper Beam','Future Sight'], null),
+  mon('Girafarig', ['Normal','Psychic'], 70,80,65,85, ['Psywave','Double Hit'],['Stomp','Psycho Cut'],['Psychic','Crunch'], ['Hyper Beam','Future Sight'], {name:'Farigiraf', types:['Normal','Psychic'], mult:1.25}),
   mon('Shuckle', ['Bug','Rock'], 28,10,230,5, ['Rollout','Infestation'],['Struggle Bug','Ancient Power'],['Rock Blast','Lunge'], ['Megahorn','Stone Edge'], null),
   mon('Sudowoodo', ['Rock'], 70,100,115,30, ['Rock Throw','Double Edge'],['Mud Slap','Rock Tomb'],['Rock Blast','Mud Bomb'], ['Head Smash','Earthquake'], null),
   mon('Skarmory', ['Steel','Flying'], 65,80,140,70, ['Air Cutter','Steel Wing'],['Metal Claw','Acrobatics'],['Drill Peck','Gyro Ball'], ['Steel Beam','Brave Bird'], null),
@@ -240,7 +249,10 @@ const POKEMON_DB = [
   // ----- Fan favorites from every generation (no legendaries or mythicals) -----
   // Kanto
   mon('Jigglypuff', ['Normal','Fairy'], 115,45,20,20, ['Double Slap','Disarming Voice'],['Pound','Rollout'],['Hyper Voice','Play Rough'], ['Giga Impact'], {name:'Wigglytuff', types:['Normal','Fairy'], mult:1.3}),
-  mon('Slowpoke', ['Water','Psychic'], 90,65,65,15, ['Chilling Water','Confusion'],['Headbutt','Water Pulse'],['Zen Headbutt','Surf'], ['Future Sight'], {name:'Slowbro', types:['Water','Psychic'], mult:1.3}),
+  mon('Slowpoke', ['Water','Psychic'], 90,65,65,15, ['Chilling Water','Confusion'],['Headbutt','Water Pulse'],['Zen Headbutt','Surf'], ['Future Sight'], {branch:[
+    {name:'Slowbro', types:['Water','Psychic'], note:'A Shellder clamps down on its tail.'},
+    {name:'Slowking', types:['Water','Psychic'], note:"A Shellder bites onto its head, and a King's Rock makes it wise."},
+  ], mult:1.3}),
   // Johto
   mon('Togepi', ['Fairy'], 35,20,65,20, ['Fairy Wind','Ancient Power'],['Pound','Draining Kiss'],['Dazzling Gleam','Air Slash'], ['Sky Attack'], {name:'Togetic', types:['Fairy','Flying'], mult:1.3, evolvesTo:{name:'Togekiss', types:['Fairy','Flying'], mult:1.45}}),
   mon('Marill', ['Water','Fairy'], 70,20,50,40, ['Bubble','Rollout'],['Aqua Jet','Bubble Beam'],['Play Rough','Aqua Tail'], ['Superpower'], {name:'Azumarill', types:['Water','Fairy'], mult:1.4}),
@@ -372,7 +384,7 @@ const GYM_LEADERS = [
     style: { name: 'Gym Leader', desc: 'Loud, brash, and lightning-fast' },
     taunt: `Ha! Lightning strikes fast, kid. Blink and you've already lost.` },
   { id: 'sabrina', name: 'Sabrina', city: 'Saffron City', badge: 'Marsh Badge', type: 'Psychic',
-    skill: 0.20, loyalty: 1.0, trainedPct: 14,
+    skill: 0.20, loyalty: 1.0, trainedPct: 10,
     style: { name: 'Gym Leader', desc: 'Cold, calm, and always a step ahead' },
     taunt: `I already know how this battle ends. Show me anyway.` },
   { id: 'erika', name: 'Erika', city: 'Celadon City', badge: 'Rainbow Badge', type: 'Grass',
@@ -1963,7 +1975,7 @@ function evolutionStages(p) {
   const stages = [];
   let e = p.evolvesTo;
   while (e) {
-    if (e.branch) { stages.push({ branch: e.branch.length }); break; }
+    if (e.branch) { stages.push({ branch: e.branch.length, names: e.branch.map(b => b.name) }); break; }
     stages.push({ name: e.name });
     e = e.evolvesTo;
   }
@@ -2014,7 +2026,7 @@ function ScoutingSheet({ pokemon, accent, pickerName, opponentName, opponentRost
       {stages.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 6px', marginTop: 6, fontFamily: FONT_MONO, fontSize: 10, color: COLORS.jadeBright }}>
           <span>&#10022; EVOLVES MID-BATTLE</span>
-          {stages.map((s, i) => <span key={i}>&#9656; {s.branch ? `1 OF ${s.branch} FORMS` : s.name.toUpperCase()}</span>)}
+          {stages.map((s, i) => <span key={i}>&#9656; {s.branch ? (s.branch <= 3 ? s.names.join(' / ').toUpperCase() : `1 OF ${s.branch} FORMS`) : s.name.toUpperCase()}</span>)}
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '5px 12px', marginTop: 10 }}>
