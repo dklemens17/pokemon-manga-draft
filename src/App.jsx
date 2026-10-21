@@ -2234,7 +2234,7 @@ function arenaLayers(leader) {
 function ArenaBackdrop({ leader }) {
   const { theme, color, p } = arenaLayers(leader);
   return (
-    <div aria-hidden="true" style={{
+    <div aria-hidden="true" data-arena="backdrop" style={{
       position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
       background: `linear-gradient(180deg, ${hexA(color, 0.2)} 0%, ${hexA(color, 0.05)} 38%, transparent 70%), ${theme.base || COLORS.ink}`,
     }}>
@@ -3207,10 +3207,14 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
     );
   }
 
+  // The arena backdrop sits BEHIND the battle content as its own layer (z 0 vs the content's z 1).
+  // Keep it outside the content div: as a positioned child it would paint over every non-positioned
+  // element inside, hiding the move buttons while still letting taps through.
   return (
+    <>
+    {gym && <ArenaBackdrop leader={gym.leader} />}
+    {gym && aceBanner && <AceBanner leader={gym.leader} aceName={aceBanner} onDone={() => setAceBanner(null)} />}
     <div style={{ minHeight: '100vh', padding: '20px 16px 32px', maxWidth: 560, margin: '0 auto', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
-      {gym && <ArenaBackdrop leader={gym.leader} />}
-      {gym && aceBanner && <AceBanner leader={gym.leader} aceName={aceBanner} onDone={() => setAceBanner(null)} />}
       <button onClick={onBack} style={{ position: 'relative', alignSelf: 'flex-start', background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0, marginBottom: 16 }}>
         &larr; TEAMS
       </button>
@@ -3405,6 +3409,7 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
         </div>
       )}
     </div>
+    </>
   );
 }
 
