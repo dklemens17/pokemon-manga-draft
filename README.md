@@ -26,7 +26,7 @@ Every game deals a fresh pool of 15 Pokémon. Trainers snake-draft three each, t
 - Each leader's **ace** is a fully evolved Pokémon that never appears in the 2-player draft. Beat the leader and you earn their badge, and the ace becomes yours to bring into later VS Computer battles. It takes one of your six slots. Gym exclusives are never earned.
 - Later leaders also bring stronger aces and a small "gym-trained" stat boost on everyone but their ace (shown on the team screen).
 - Difficulty is tuned by simulating players who draft for type advantage (Water and Grass against Brock, and so on). Such a player wins about three times in four against Brock, about half the time against Erika, and about one in three against Giovanni. Drafting for stats as well as type does better.
-- Gym and League battles never change your scoreboard record or grade. Badges show as colored dots next to your name on the scoreboard.
+- Gym and League battles never change your scoreboard record or grade. Every badge and League opponent has its own original badge design, and the badges you've earned appear as mini badges next to your name on the scoreboard.
 
 **The Pokémon League.** After the gyms comes the Indigo Plateau, and each step stays hidden until you've earned it:
 

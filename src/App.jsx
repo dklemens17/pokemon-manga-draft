@@ -1879,29 +1879,250 @@ function renderStoryText(text) {
   return paragraphs.map((p, i) => <div key={i} style={{ marginTop: i === 0 ? 0 : 8 }}>{p}</div>);
 }
 
-// A gym badge: filled with the leader's type color once earned, an empty dashed ring until then.
-function BadgeMedallion({ leader, earned, size = 30 }) {
-  const color = opponentColor(leader);
+// ===================== BADGE ART =====================
+// An original set of badge designs (inline SVG, 100x100 viewBox): a distinct silhouette and emblem
+// per badge, themed to the gym's type, with a metallic gradient, a sheen and an inner bevel. The
+// League gets matching emblems: an Elite Four crest per member, a crown for the Champion, and a
+// Hall of Fame wreath for Professor Oak.
+function scallopPath(n, r1, r2) {
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * 2 * Math.PI - Math.PI / 2, a1 = ((i + 1) / n) * 2 * Math.PI - Math.PI / 2, am = (a0 + a1) / 2;
+    const f = v => v.toFixed(1);
+    if (i === 0) d += `M${f(50 + r1 * Math.cos(a0))} ${f(50 + r1 * Math.sin(a0))} `;
+    d += `Q${f(50 + r2 * Math.cos(am))} ${f(50 + r2 * Math.sin(am))} ${f(50 + r1 * Math.cos(a1))} ${f(50 + r1 * Math.sin(a1))} `;
+  }
+  return d + 'Z';
+}
+function starPath(cx, cy, points, rOuter, rInner, rotation = -Math.PI / 2) {
+  let d = '';
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? rOuter : rInner;
+    const a = rotation + (i * Math.PI) / points;
+    d += `${i === 0 ? 'M' : 'L'}${(cx + r * Math.cos(a)).toFixed(1)} ${(cy + r * Math.sin(a)).toFixed(1)} `;
+  }
+  return d + 'Z';
+}
+const CIRCLE_BODY = 'M50 5 A45 45 0 1 1 49.99 5 Z';
+const CREST_BODY = 'M50 4 L93 33 L78 93 L22 93 L7 33 Z';
+
+const BADGE_ART = {
+  // Boulder: a shield with a mountain range
+  brock: {
+    light: '#EFE2BF', mid: '#B39869', dark: '#5E4C30', edge: '#3A2E1C',
+    body: 'M50 5 L88 18 L85 58 C82 78 68 89 50 96 C32 89 18 78 15 58 L12 18 Z',
+    emblem: c => (<>
+      <path d="M14 76 L37 42 L47 55 L61 30 L86 76 Z" fill={c.dark} />
+      <path d="M61 30 L68 43 L63 41 L59 46 L55 41 Z" fill={c.light} />
+      <path d="M37 42 L42 50 L38 49 L35 52 L33 49 Z" fill={c.light} />
+    </>),
+  },
+  // Cascade: a round medallion with rolling waves
+  misty: {
+    light: '#D2EDFC', mid: '#4C93C7', dark: '#1F4F7A', edge: '#13324F',
+    body: CIRCLE_BODY,
+    emblem: c => (<g fill="none" stroke={c.light} strokeWidth="6" strokeLinecap="round">
+      <path d="M16 38 Q27 29 38 38 T60 38 T84 38" />
+      <path d="M16 54 Q27 45 38 54 T60 54 T84 54" />
+      <path d="M16 70 Q27 61 38 70 T60 70 T84 70" opacity="0.75" />
+    </g>),
+  },
+  // Thunder: a diamond with a lightning bolt
+  surge: {
+    light: '#FFF4B8', mid: '#E8C93A', dark: '#9C7A12', edge: '#5E4808',
+    body: 'M50 3 L96 50 L50 97 L4 50 Z',
+    emblem: c => <path d="M57 15 L31 54 L47 54 L40 85 L70 43 L54 43 L61 15 Z" fill={c.light} stroke={c.dark} strokeWidth="2.5" strokeLinejoin="round" />,
+  },
+  // Marsh: a hexagon with an all-seeing eye
+  sabrina: {
+    light: '#FCE0EB', mid: '#E86B98', dark: '#8E2F57', edge: '#561A34',
+    body: 'M50 4 L90 27 L90 73 L50 96 L10 73 L10 27 Z',
+    emblem: c => (<>
+      <path d="M18 50 Q50 20 82 50 Q50 80 18 50 Z" fill={c.light} />
+      <circle cx="50" cy="50" r="14" fill={c.mid} stroke={c.dark} strokeWidth="2.5" />
+      <circle cx="50" cy="50" r="6" fill={c.dark} />
+      <circle cx="45" cy="45" r="3" fill="#FFFFFF" />
+    </>),
+  },
+  // Rainbow: an arch with rainbow bands and a sprout
+  erika: {
+    light: '#D8F4CF', mid: '#5FA65A', dark: '#2A6427', edge: '#1A4218',
+    body: 'M8 94 L8 50 A42 42 0 0 1 92 50 L92 94 Z',
+    emblem: c => (<>
+      <g fill="none" strokeWidth="5" strokeLinecap="round">
+        <path d="M20 94 V52 A30 30 0 0 1 80 52 V94" stroke="#F08A7E" />
+        <path d="M27 94 V52 A23 23 0 0 1 73 52 V94" stroke="#F5D46A" />
+        <path d="M34 94 V52 A16 16 0 0 1 66 52 V94" stroke="#7FC3EA" />
+      </g>
+      <path d="M50 92 V66" stroke={c.dark} strokeWidth="4" strokeLinecap="round" />
+      <path d="M50 76 Q37 74 34 62 Q47 62 50 76 Z" fill={c.light} stroke={c.dark} strokeWidth="1.5" />
+      <path d="M50 70 Q63 68 66 56 Q53 56 50 70 Z" fill={c.light} stroke={c.dark} strokeWidth="1.5" />
+    </>),
+  },
+  // Soul: a four-point shuriken
+  koga: {
+    light: '#EBD3F3', mid: '#9857A8', dark: '#4E2459', edge: '#2E1236',
+    body: 'M50 2 L61 39 L98 50 L61 61 L50 98 L39 61 L2 50 L39 39 Z',
+    emblem: c => (<>
+      <path d="M50 14 L56 44 L86 50 L56 56 L50 86 L44 56 L14 50 L44 44 Z" fill={c.light} opacity="0.35" />
+      <circle cx="50" cy="50" r="9" fill={c.edge} stroke={c.light} strokeWidth="2" />
+    </>),
+  },
+  // Volcano: a rounded square with an erupting volcano
+  blaine: {
+    light: '#FFDDBE', mid: '#E2703E', dark: '#7E2C10', edge: '#4E1A08',
+    body: 'M22 6 H78 Q94 6 94 22 V78 Q94 94 78 94 H22 Q6 94 6 78 V22 Q6 6 22 6 Z',
+    emblem: c => (<>
+      <path d="M12 86 L38 46 L62 46 L88 86 Z" fill={c.dark} />
+      <ellipse cx="50" cy="46" rx="12" ry="4" fill="#FFD27A" />
+      <path d="M46 47 L42 64 L49 59 L46 76 L56 54 L50 57 L54 47 Z" fill="#FF9B45" />
+      <circle cx="40" cy="30" r="4" fill="#FFD27A" />
+      <circle cx="58" cy="24" r="3.5" fill="#FFB25A" />
+      <circle cx="49" cy="15" r="2.5" fill="#FFD27A" />
+    </>),
+  },
+  // Earth: a scalloped seal with layered strata
+  giovanni: {
+    light: '#EFE1BD', mid: '#B88F4E', dark: '#5C4322', edge: '#352611',
+    body: scallopPath(12, 41, 50),
+    emblem: c => (<>
+      <path d="M0 52 Q25 45 50 52 T100 52 V100 H0 Z" fill={c.mid} />
+      <path d="M0 64 Q25 57 50 64 T100 64 V100 H0 Z" fill="#8A6634" />
+      <path d="M0 76 Q25 69 50 76 T100 76 V100 H0 Z" fill={c.dark} />
+      <path d="M50 18 L62 32 L50 44 L38 32 Z" fill={c.light} stroke={c.dark} strokeWidth="2" />
+    </>),
+  },
+
+  // ---- the Pokémon League ----
+  // Elite Four: a shared crest shape, each with their own emblem
+  lorelei: {
+    light: '#EEFDFB', mid: '#7FD1C8', dark: '#2E7F78', edge: '#1A4D49',
+    body: CREST_BODY,
+    emblem: c => (<g stroke={c.light} strokeWidth="5" strokeLinecap="round" fill="none">
+      {[0, 60, 120].map(a => <path key={a} d="M50 26 V82" transform={`rotate(${a} 50 54)`} />)}
+      {[0, 60, 120, 180, 240, 300].map(a => <path key={`b${a}`} d="M42 32 L50 40 L58 32" transform={`rotate(${a} 50 54)`} strokeWidth="3.5" />)}
+    </g>),
+  },
+  bruno: {
+    light: '#F7D3CB', mid: '#C0503D', dark: '#6E2418', edge: '#43150D',
+    body: CREST_BODY,
+    emblem: c => (<>
+      <path d={starPath(50, 55, 8, 30, 13)} fill={c.light} />
+      <circle cx="50" cy="55" r="9" fill={c.dark} />
+    </>),
+  },
+  agatha: {
+    light: '#E4DBF6', mid: '#6F5C96', dark: '#33274D', edge: '#1E1630',
+    body: CREST_BODY,
+    emblem: c => (<>
+      <path d="M50 26 C66 26 72 39 72 51 L72 78 L64 71 L57 79 L50 71 L43 79 L36 71 L28 78 L28 51 C28 39 34 26 50 26 Z" fill={c.light} />
+      <ellipse cx="42" cy="50" rx="4" ry="6" fill={c.dark} />
+      <ellipse cx="58" cy="50" rx="4" ry="6" fill={c.dark} />
+    </>),
+  },
+  lance: {
+    light: '#D8DDFC', mid: '#5D6FE8', dark: '#263283', edge: '#141B4F',
+    body: CREST_BODY,
+    emblem: c => (<g fill="none" stroke={c.light} strokeWidth="7" strokeLinecap="round">
+      <path d="M32 28 Q46 52 34 82" />
+      <path d="M50 24 Q64 50 52 84" />
+      <path d="M68 28 Q80 52 70 80" />
+    </g>),
+  },
+  // Champion: a gold medal with a crown
+  gary: {
+    light: '#FFF4C4', mid: '#D9B54A', dark: '#8A6A12', edge: '#55400A',
+    body: CIRCLE_BODY,
+    emblem: c => (<>
+      <path d="M24 66 L22 34 L37 48 L50 26 L63 48 L78 34 L76 66 Z" fill={c.light} stroke={c.dark} strokeWidth="2.5" strokeLinejoin="round" />
+      <rect x="24" y="66" width="52" height="9" rx="2" fill={c.dark} />
+      <circle cx="50" cy="56" r="4.5" fill="#E86B6B" />
+      <circle cx="36" cy="58" r="3" fill="#7FC3EA" />
+      <circle cx="64" cy="58" r="3" fill="#7FC3EA" />
+    </>),
+  },
+  // Professor Oak: the Hall of Fame wreath
+  oak: {
+    light: '#FFFFFF', mid: '#E6DCC2', dark: '#9C8D6A', edge: '#5A503C',
+    body: CIRCLE_BODY,
+    emblem: () => (<>
+      <path d="M30 80 Q16 60 24 34 M70 80 Q84 60 76 34" fill="none" stroke="#2F7466" strokeWidth="2.5" strokeLinecap="round" />
+      {Array.from({ length: 6 }, (_, i) => {
+        const t = 125 + i * 18;
+        const rad = (t * Math.PI) / 180;
+        const x = 50 + 32 * Math.cos(rad), y = 53 + 32 * Math.sin(rad);
+        const rot = t + 90 + 40;
+        return (<g key={i}>
+          <ellipse cx={x.toFixed(1)} cy={y.toFixed(1)} rx="6.5" ry="3" fill="#4FA393" stroke="#2F7466" strokeWidth="1" transform={`rotate(${rot.toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})`} />
+          <ellipse cx={(100 - x).toFixed(1)} cy={y.toFixed(1)} rx="6.5" ry="3" fill="#4FA393" stroke="#2F7466" strokeWidth="1" transform={`rotate(${(-rot).toFixed(0)} ${(100 - x).toFixed(1)} ${y.toFixed(1)})`} />
+        </g>);
+      })}
+      <path d={starPath(50, 50, 5, 17, 7.5)} fill="#D9B54A" stroke="#8A6A12" strokeWidth="2" strokeLinejoin="round" />
+    </>),
+  },
+};
+
+// Stable per-instance id for SVG gradients (several badges share a page, so ids must not collide).
+function useSvgId() {
+  const ref = useRef(null);
+  if (ref.current === null) ref.current = 'b' + Math.random().toString(36).slice(2, 9);
+  return ref.current;
+}
+
+function BadgeIcon({ id, earned = true, size = 32, label }) {
+  const art = BADGE_ART[id];
+  const uid = useSvgId();
+  if (!art) return null;
+  if (!earned) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label={label ? `${label} (not earned yet)` : undefined} style={{ flexShrink: 0, display: 'block' }}>
+        <path d={art.body} fill="rgba(156,145,132,0.08)" stroke={COLORS.ash} strokeWidth="3" strokeDasharray="8 6" strokeLinejoin="round" opacity="0.7" />
+      </svg>
+    );
+  }
+  const fillId = `${uid}f`, sheenId = `${uid}s`, clipId = `${uid}c`;
   return (
-    <div title={leader.badge || leader.name} style={{
-      width: size, height: size, borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box',
-      border: earned ? `2px solid ${color}` : `1px dashed ${COLORS.ash}`,
-      background: earned ? color : 'transparent', color: earned ? COLORS.ink : COLORS.ash,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: size * 0.45, opacity: earned ? 1 : 0.6,
-    }}>
-      {leader.mark || leader.badge.charAt(0)}
+    <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label={label} style={{ flexShrink: 0, display: 'block', overflow: 'visible' }}>
+      <defs>
+        <linearGradient id={fillId} x1="0.15" y1="0" x2="0.6" y2="1">
+          <stop offset="0" stopColor={art.light} />
+          <stop offset="0.5" stopColor={art.mid} />
+          <stop offset="1" stopColor={art.dark} />
+        </linearGradient>
+        <linearGradient id={sheenId} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.5" />
+          <stop offset="0.42" stopColor="#FFFFFF" stopOpacity="0.08" />
+          <stop offset="0.43" stopColor="#FFFFFF" stopOpacity="0" />
+        </linearGradient>
+        <clipPath id={clipId}><path d={art.body} /></clipPath>
+      </defs>
+      <path d={art.body} fill={`url(#${fillId})`} />
+      <g clipPath={`url(#${clipId})`}>
+        {art.emblem(art)}
+        <path d={art.body} fill={`url(#${sheenId})`} />
+      </g>
+      <path d={art.body} fill="none" stroke={art.light} strokeOpacity="0.55" strokeWidth="2" strokeLinejoin="round" transform="translate(50 50) scale(0.86) translate(-50 -50)" />
+      <path d={art.body} fill="none" stroke={art.edge} strokeWidth="4" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// A badge (or League emblem) in the badge case, team screen, and win screen. Not yet earned: just a
+// dashed outline of its shape.
+function BadgeMedallion({ leader, earned, size = 30, pop = false }) {
+  return (
+    <div title={leader.badge || leader.name} className={pop ? 'badge-pop' : undefined} style={{ flexShrink: 0, lineHeight: 0 }}>
+      <BadgeIcon id={leader.id} earned={earned} size={size} label={leader.badge || leader.name} />
     </div>
   );
 }
 
+// The scoreboard's row of mini badges.
 function BadgeDots({ badges }) {
   const owned = GYM_LEADERS.filter(l => badges.includes(l.id));
   return (
-    <div style={{ display: 'flex', gap: 3, marginTop: 3 }} title={`${owned.length} gym badge${owned.length === 1 ? '' : 's'}`}>
-      {owned.map(l => (
-        <span key={l.id} title={l.badge} style={{ width: 7, height: 7, borderRadius: '50%', background: TYPE_COLORS[l.type], display: 'inline-block' }} />
-      ))}
+    <div style={{ display: 'flex', gap: 2, marginTop: 3 }} title={`${owned.length} gym badge${owned.length === 1 ? '' : 's'}`}>
+      {owned.map(l => <BadgeIcon key={l.id} id={l.id} size={12} label={l.badge} />)}
     </div>
   );
 }
@@ -2226,7 +2447,7 @@ function GymHubScreen({ challenger, onChallenge, onBack }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 2, margin: '14px 0 14px', padding: '10px 6px', background: COLORS.panel, border: `1px solid ${COLORS.hairline}`, borderRadius: 4 }}>
         {GYM_LEADERS.map(l => (
           <div key={l.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 0 }}>
-            <BadgeMedallion leader={l} earned={earned.includes(l.id)} size={30} />
+            <BadgeMedallion leader={l} earned={earned.includes(l.id)} size={34} />
             <div style={{ fontFamily: FONT_MONO, fontSize: 7, color: earned.includes(l.id) ? COLORS.paper : COLORS.ash, letterSpacing: '0.02em' }}>
               {l.badge.split(' ')[0].toUpperCase()}
             </div>
@@ -2522,7 +2743,7 @@ function GymResultPanel({ gym, result }) {
   }
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'center', textAlign: 'left', background: COLORS.panel, border: `1px solid ${earned ? opponentColor(l) : COLORS.hairline}`, borderRadius: 4, padding: '12px 14px', marginBottom: 20 }}>
-      <BadgeMedallion leader={l} earned={earned} size={40} />
+      <BadgeMedallion leader={l} earned={earned} size={56} pop={earned && result.won && !result.saving && result.newBadge !== false && result.newWin !== false} />
       <div style={{ minWidth: 0 }}>
         <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 16, color: earned ? COLORS.paper : COLORS.ash, lineHeight: 1.15 }}>{title}</div>
         <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: COLORS.ash, marginTop: 4, lineHeight: 1.45 }}>{body}</div>
@@ -2989,9 +3210,11 @@ export default function App() {
         .finish-flash { animation: finishFlashKf 0.9s ease-out; }
         @keyframes finishPopKf { 0% { transform: scale(0.92); opacity: 0.4; } 55% { transform: scale(1.03); } 100% { transform: scale(1); opacity: 1; } }
         .finish-pop { animation: finishPopKf 0.45s ease-out; }
+        @keyframes badgePopKf { 0% { transform: scale(0.4) rotate(-12deg); opacity: 0; } 60% { transform: scale(1.15) rotate(4deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
+        .badge-pop { animation: badgePopKf 0.6s cubic-bezier(.2,.9,.3,1.2); }
         @keyframes loadingPulseKf { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
         .loading-pulse { animation: loadingPulseKf 1.3s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .screen, .finish-flash, .finish-pop, .loading-pulse { animation: none; } }
+        @media (prefers-reduced-motion: reduce) { .screen, .finish-flash, .finish-pop, .loading-pulse, .badge-pop { animation: none; } }
       `}</style>
       <div className="screen" key={phase}>
         {phase === 'title' && <TitleScreen onStart={() => setPhase('setup')} onStartCpu={() => setPhase('vs-setup')} />}
