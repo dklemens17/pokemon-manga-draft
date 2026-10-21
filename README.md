@@ -73,6 +73,7 @@ The game was first built as a Claude artifact, which provides two things this re
 src/App.jsx      the whole game: data, battle engine, computer AI, narration, screens
 src/storage.js   localStorage stand-in for the artifact storage API
 src/main.jsx     mounts the app
+public/          app icon (home screen, browser tab) and web manifest
 ```
 
 ## Disclaimer
