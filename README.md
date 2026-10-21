@@ -23,7 +23,8 @@ Every game deals a fresh pool of 15 Pokémon. Trainers snake-draft three each, t
 
 - Gyms open one at a time for a named trainer. Guests can practice against any gym, but nothing is saved.
 - Each leader fields a fully evolved **ace** that never appears in the 2-player draft. Beat the leader and you earn their badge, and the ace becomes yours to bring into later VS Computer battles. It takes one of your three slots.
-- Leaders get tougher three ways: sharper drafting and battle decisions, a small "gym-trained" stat boost on their drafted Pokémon (shown on the team screen), and a stronger ace.
+- Brock and Misty field two Pokémon against your three, like their battles with Ash; every later leader fields three. Later leaders also bring stronger aces and a small "gym-trained" stat boost on their drafted Pokémon (shown on the team screen).
+- Difficulty is tuned by simulating players who draft for type advantage (Water and Grass against Brock, and so on). Such a player wins about three times in four against Brock, about half the time against Erika, and about one in three against Giovanni. Drafting for stats as well as type does better.
 - Gym battles never change your scoreboard record or grade. Badges show as colored dots next to your name on the scoreboard.
 
 ## Run it locally
