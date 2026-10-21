@@ -1720,10 +1720,7 @@ function typeColorPair(p) {
   return [c1, p.types[1] ? glowColor(TYPE_COLORS[p.types[1]] || COLORS.ash) : c1];
 }
 
-// A pool card: washed in its type color(s), with a split edge for dual types. The layout steps down
-// as cards get shorter (a full pool on a small phone): stacked bars, then bars in pairs, then the
-// type names shrink to colored dots beside the name. The steps are CSS container queries (.pool-card in the
-// App's style block), so they follow the card's real size.
+// A type name in its own color, for the pool cards.
 function TypePill({ type }) {
   const c = glowColor(TYPE_COLORS[type] || COLORS.ash);
   return (
@@ -1733,8 +1730,37 @@ function TypePill({ type }) {
   );
 }
 
+// How many times a Pokémon can evolve (an Eevee-style branch counts once).
+function evolutionCount(p) {
+  let n = 0, e = p.evolvesTo;
+  while (e) { n += 1; if (e.branch) break; e = e.evolvesTo; }
+  return n;
+}
+
+// One stat on a pool card: the number up front, a thin bar underneath on the shared scale.
+function StatTile({ label, value, color }) {
+  const pct = Math.max(4, Math.min(100, (value / STAT_BAR_MAX) * 100));
+  return (
+    <div style={{ minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+        <span style={{ width: 17, flexShrink: 0, fontFamily: FONT_MONO, fontSize: 7.5, color: COLORS.ash }}>{label}</span>
+        <span className="pool-num" style={{ fontFamily: FONT_MONO, fontWeight: 600, lineHeight: 1, color: COLORS.paper }}>{value}</span>
+      </div>
+      <div style={{ height: 3, marginTop: 2, borderRadius: 2, overflow: 'hidden', background: 'rgba(237,230,214,0.1)' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color }} />
+      </div>
+    </div>
+  );
+}
+
+// A pool card: washed in its type color(s), with a split edge for dual types, the type names, and
+// the four stats as big numbers over thin bars. Nearly everything in the roster evolves, so only
+// Pokémon that evolve twice get a mark (EVO ×2); the scouting report has the full line. On short
+// screens the type names shrink to colored dots beside the name (a CSS container query on
+// .pool-card in the App's style block, so it follows the card's real size).
 function PoolCard({ pokemon, selected, dimmed, accent, onClick }) {
   const [c1, c2] = typeColorPair(pokemon);
+  const twice = evolutionCount(pokemon) >= 2;
   return (
     <div
       onClick={onClick}
@@ -1745,8 +1771,8 @@ function PoolCard({ pokemon, selected, dimmed, accent, onClick }) {
       className="pool-card"
       style={{
         position: 'relative', overflow: 'hidden', minHeight: 0, boxSizing: 'border-box', cursor: 'pointer',
-        borderRadius: 5, padding: '5px 6px 5px 9px',
-        display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2,
+        borderRadius: 6, padding: '5px 7px 5px 10px',
+        display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3,
         backgroundColor: COLORS.panel,
         backgroundImage: `linear-gradient(155deg, ${hexA(c1, 0.3)}, ${hexA(c2, 0.1)} 55%, transparent 92%)`,
         border: `1px solid ${selected ? accent : COLORS.hairline}`,
@@ -1755,22 +1781,19 @@ function PoolCard({ pokemon, selected, dimmed, accent, onClick }) {
       }}
     >
       <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: `linear-gradient(${c1} 50%, ${c2} 50%)` }} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 13, color: COLORS.paper, lineHeight: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 15, color: COLORS.paper, lineHeight: 1 }}>
           {pokemon.name}
         </div>
         <div className="pool-types-inline" aria-hidden="true" style={{ gap: 2 }}>
           {[c1, c2].slice(0, pokemon.types.length).map((c, i) => <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: c }} />)}
         </div>
-        {selected ? (
-          <span style={{ fontSize: 10, color: accent, flexShrink: 0 }}>&#10003;</span>
-        ) : pokemon.evolvesTo && (
-          <span title="Can evolve mid-battle" style={{ fontSize: 10, color: COLORS.jadeBright, flexShrink: 0 }}>&#10022;</span>
-        )}
+        {twice && <span title="Evolves twice" style={{ flexShrink: 0, fontFamily: FONT_MONO, fontSize: 8, fontWeight: 600, letterSpacing: '0.04em', color: COLORS.jadeBright }}><span className="pool-evo-word">EVO </span>×2</span>}
+        {selected && <span style={{ flexShrink: 0, fontSize: 11, color: accent }}>&#10003;</span>}
       </div>
       <div className="pool-types" style={{ gap: 3, overflow: 'hidden' }}>{pokemon.types.map(t => <TypePill key={t} type={t} />)}</div>
-      <div className="pool-stats">
-        {STAT_KEYS.map(k => <StatBar key={k} label={STAT_LABELS[k][0]} value={pokemon.stats[k]} color={c1} />)}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '3px 8px', marginTop: 1 }}>
+        {STAT_KEYS.map(k => <StatTile key={k} label={STAT_LABELS[k][1]} value={pokemon.stats[k]} color={c1} />)}
       </div>
     </div>
   );
@@ -2758,7 +2781,7 @@ function TitleScreen({ onStart, onStartCpu }) {
   }, []);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 40px' }}>
+    <div className="min-screen" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 40px' }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: 48, color: COLORS.paper, lineHeight: 0.95 }}>
           THE DRAFT
@@ -2800,7 +2823,7 @@ function SetupScreen({ onStart, onBack }) {
   const [name2, setName2] = useState('');
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
+    <div className="min-screen" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
       <button onClick={onBack} style={{ position: 'absolute', top: 24, left: 24, background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0 }}>
         &larr; BACK
       </button>
@@ -2829,7 +2852,7 @@ function SetupScreen({ onStart, onBack }) {
 function VsSetupScreen({ onContinue, onBack }) {
   const [name, setName] = useState('');
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
+    <div className="min-screen" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
       <button onClick={onBack} style={{ position: 'absolute', top: 24, left: 24, background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0 }}>
         &larr; BACK
       </button>
@@ -2939,7 +2962,7 @@ function GymHubScreen({ challenger, onChallenge, onBack }) {
     : 'Bringing an ace means drafting five instead of six.';
 
   return (
-    <div style={{ minHeight: '100vh', maxWidth: 460, margin: '0 auto', padding: '20px 16px 0', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
+    <div className="min-screen" style={{ maxWidth: 460, margin: '0 auto', padding: '20px 16px 0', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
       <button onClick={onBack} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0, marginBottom: 14 }}>
         &larr; HOME
       </button>
@@ -3041,6 +3064,8 @@ function DraftScreen({ trainers, pool, rosters, pickOrder, pickIndex, onPick, on
   const accent = colors[currentIdx];
   const showSheet = !!selected && !cpuTurn;
   const slotsFor = i => rosters[i].length + pickOrder.slice(pickIndex).filter(s => s === i).length;
+  // The pool is always shown strongest attack first (ties alphabetical). Display order only.
+  const ordered = [...pool].sort((a, b) => b.stats.atk - a.stats.atk || a.name.localeCompare(b.name));
 
   const confirmPick = () => {
     if (!selected) return;
@@ -3049,7 +3074,7 @@ function DraftScreen({ trainers, pool, rosters, pickOrder, pickIndex, onPick, on
   };
 
   return (
-    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', maxWidth: 720, margin: '0 auto', overflow: 'hidden', position: 'relative' }}>
+    <div className="screen-fit" style={{ display: 'flex', flexDirection: 'column', maxWidth: 720, margin: '0 auto', overflow: 'hidden', position: 'relative' }}>
       <div style={{ flexShrink: 0, background: COLORS.ink, padding: '12px 16px 9px', borderBottom: `1px solid ${COLORS.hairline}` }}>
         <button onClick={onReset} style={{ background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0, marginBottom: 4 }}>
           &larr; {backLabel}
@@ -3092,11 +3117,12 @@ function DraftScreen({ trainers, pool, rosters, pickOrder, pickIndex, onPick, on
           ))}
         </div>
 
-        <div style={{ flexShrink: 0, fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash, letterSpacing: '0.1em', marginBottom: 7, borderBottom: `1px solid ${COLORS.hairline}`, paddingBottom: 5 }}>
-          THE POOL — {pool.length} LEFT
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash, letterSpacing: '0.1em', marginBottom: 7, borderBottom: `1px solid ${COLORS.hairline}`, paddingBottom: 5 }}>
+          <span>THE POOL — {pool.length} LEFT</span>
+          <span>BY ATTACK &#9660;</span>
         </div>
         <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gridAutoRows: 'minmax(0, 1fr)', gap: 6, overflow: 'hidden' }}>
-          {pool.map(p => (
+          {ordered.map(p => (
             <PoolCard
               key={p.name}
               pokemon={p}
@@ -3128,7 +3154,7 @@ function ReviewScreen({ trainers, rosters, onBattle, onReset, gym = null, backLa
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [quickBattle, setQuickBattle] = useState(false);
   return (
-    <div style={{ minHeight: '100vh', padding: '32px 16px 60px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="min-screen" style={{ padding: '32px 16px 60px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <button onClick={onReset} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0, marginBottom: 20 }}>
         &larr; {backLabel}
       </button>
@@ -3498,11 +3524,11 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
     {gym && <ArenaBackdrop leader={gym.leader} />}
     {gym && aceBanner && <AceBanner leader={gym.leader} aceName={aceBanner} onDone={() => setAceBanner(null)} />}
     {evolution && <EvolutionOverlay key={evolution.key} evo={evolution} onDone={() => setEvolution(null)} />}
-    {/* While battling, the screen is exactly one viewport tall (battle-fit = 100dvh): the header and
+    {/* While battling, the screen is exactly one viewport tall (screen-fit = 100dvh): the header and
         the controls stay put and only the story scrolls between them, so the move buttons are always
         on screen. The result screen goes back to normal page scrolling for the epilogue and stats. */}
-    <div className={showWinner ? undefined : 'battle-fit'} style={{
-      ...(showWinner ? { minHeight: '100vh' } : { overflow: 'hidden' }),
+    <div className={showWinner ? 'min-screen' : 'screen-fit'} style={{
+      ...(showWinner ? {} : { overflow: 'hidden' }),
       padding: '10px 16px', paddingBottom: 'max(12px, env(safe-area-inset-bottom))', boxSizing: 'border-box',
       maxWidth: 560, margin: '0 auto', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1,
     }}>
@@ -3797,13 +3823,14 @@ export default function App() {
   };
 
   return (
-    <div style={{ background: COLORS.ink, minHeight: '100vh', fontFamily: FONT_BODY, color: COLORS.paper }}>
+    <div className="min-screen" style={{ background: COLORS.ink, fontFamily: FONT_BODY, color: COLORS.paper }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap');
         button:focus-visible, input:focus-visible, div[role="button"]:focus-visible { outline: 2px solid ${COLORS.jadeBright}; outline-offset: 2px; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .screen { animation: fadeIn 0.35s ease; }
-        .battle-fit { height: 100vh; height: 100dvh; }
+        .screen-fit { height: 100vh; height: 100dvh; }
+        .min-screen { min-height: 100vh; min-height: 100dvh; }
         @keyframes finishFlashKf { 0% { background: transparent; } 20% { background: rgba(79, 163, 147, 0.32); } 100% { background: transparent; } }
         .finish-flash { animation: finishFlashKf 0.9s ease-out; }
         @keyframes finishPopKf { 0% { transform: scale(0.92); opacity: 0.4; } 55% { transform: scale(1.03); } 100% { transform: scale(1); opacity: 1; } }
@@ -3815,9 +3842,9 @@ export default function App() {
         .pool-card { container-type: size; }
         .pool-types { display: flex; }
         .pool-types-inline { display: none; flex-shrink: 0; }
-        .pool-stats { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
-        @container (max-height: 74.9px) { .pool-stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 5px; } }
-        @container (max-height: 50.9px) { .pool-types { display: none; } .pool-types-inline { display: flex; } }
+        .pool-num { font-size: 13px; }
+        @container (max-height: 72.9px) { .pool-types { display: none; } .pool-types-inline { display: flex; } .pool-evo-word { display: none; } }
+        @container (max-height: 57.9px) { .pool-num { font-size: 11px; } }
         @keyframes sheetRiseKf { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .sheet-rise { animation: sheetRiseKf 0.18s ease-out; }
         @keyframes arenaWaves { to { background-position: 120px 0; } }

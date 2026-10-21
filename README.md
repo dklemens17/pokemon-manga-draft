@@ -4,7 +4,7 @@ A pass-and-play Pokémon drafting game with manga-style battle narration, built 
 
 Every game deals a fresh pool of 15 Pokémon. Trainers snake-draft three each, then battle. On each exchange the attacker picks a move and the defender chooses to **counter** (both hit) or **dodge** (speed decides the odds; a clean dodge punishes). Pokémon can evolve when they're low on HP, and can discover a **New Move** mid-fight that replaces whatever was chosen. Every beat is narrated in short manga-style prose.
 
-On the draft screen each trainer has a color, and a row of pips shows the snake pick order. Each team has slots that fill in as you draft, with a strip underneath showing its type mix. Pool cards are tinted by type, with stat bars that keep the numbers on top. Tap a card for its scouting report: stats, its moves by role (attack, counter, dodge and the New Move it can discover), its evolution line, and which of the other side's picks it hits hard or should watch out for.
+On the draft screen each trainer has a color, and a row of pips shows the snake pick order. Each team has slots that fill in as you draft, with a strip underneath showing its type mix. The pool is always sorted by attack, highest first. Each card is tinted by its type and shows its four stats as big numbers over thin bars, and Pokémon that evolve twice are marked **EVO ×2**. Tap a card for its scouting report: stats, its moves by role (attack, counter, dodge and the New Move it can discover), its evolution line, and which of the other side's picks it hits hard or should watch out for.
 
 ## Modes
 
