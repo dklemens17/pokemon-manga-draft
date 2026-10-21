@@ -293,9 +293,123 @@ const GYM_LEADERS = [
     taunt: `Seven badges. Impressive. It ends here.` },
 ];
 
-function getLeader(id) { return GYM_LEADERS.find(l => l.id === id) || null; }
+// ===================== VS COMPUTER: THE POKÉMON LEAGUE =====================
+// After the eight gyms: the Kanto Elite Four (in their classic order), Champion Gary, and a final,
+// special battle with Professor Oak. Each stays HIDDEN until it's earned: the Elite Four appear only
+// once a named trainer holds all 8 badges (and are faced one at a time), Gary only once all four are
+// beaten, and Professor Oak only once Gary is beaten. Every one of them fields a full six (two drafted
+// plus four of their own, ace last). Their aces are never earned -- league wins are recorded as
+// progress (and titles on the scoreboard) instead. Professor Oak is special: his lab, his ace Mew,
+// and he lets a challenger bring up to three earned aces instead of one.
+//
+// Tuned like the gyms, so difficulty keeps climbing past Giovanni: a type-counter drafter wins about
+// 32% vs Lorelei, 31% Bruno, 29% Agatha and 28% Lance. Gary and Oak have no single type to counter,
+// so they're tuned against a player who drafts for type and stats: about 31% vs Gary and 25% vs
+// Professor Oak (bringing three aces), the hardest battle in the game.
+//
+// Like the gym exclusives, the Elite Four's Pokémon never appear in the two-player draft at any
+// evolution stage. Gary and Professor Oak use classic Kanto Pokémon fully evolved (Gary's Blastoise,
+// Oak's starters), so a few of theirs are species a drafted Pokémon could evolve into mid-battle.
+const LEAGUE = [
+  { id: 'lorelei', kind: 'elite', name: 'Lorelei', poss: 'her', mark: 'L', type: 'Ice',
+    skill: 0.25, loyalty: 1.0, trainedPct: 12,
+    style: { name: 'Elite Four', desc: 'Cool, composed, and merciless as a blizzard' },
+    taunt: `Welcome to the Pokémon League. No one leaves my chamber without feeling the cold.` },
+  { id: 'bruno', kind: 'elite', name: 'Bruno', poss: 'his', mark: 'B', type: 'Fighting',
+    skill: 0.50, loyalty: 1.0, trainedPct: 16,
+    style: { name: 'Elite Four', desc: 'Pure strength, honed by endless training' },
+    taunt: `My Pokémon and I have trained our whole lives for this. Hoo hah!` },
+  { id: 'agatha', kind: 'elite', name: 'Agatha', poss: 'her', mark: 'A', type: 'Ghost',
+    skill: 0.00, loyalty: 1.0, trainedPct: 19,
+    style: { name: 'Elite Four', desc: 'A sharp-tongued veteran with tricks from the other side' },
+    taunt: `Oak's precious trainers, always so sure of themselves. Let's see how you handle a real battle.` },
+  { id: 'lance', kind: 'elite', name: 'Lance', poss: 'his', mark: 'L', type: 'Dragon',
+    skill: 0.00, loyalty: 1.0, trainedPct: 19,
+    style: { name: 'Elite Four', desc: 'The Dragon Master, proud and fearless' },
+    taunt: `Dragons are mythical Pokémon, and they are not easily defeated. Show me your resolve.` },
+  { id: 'gary', kind: 'champion', name: 'Gary', poss: 'his', mark: 'G', type: null, color: '#D9B54A',
+    skill: 0.03, loyalty: 0, trainedPct: 21,
+    style: { name: 'Champion', desc: 'Cocky, brilliant, and always one step ahead of his rival' },
+    taunt: `Smell ya later? Not this time. I've been waiting for you at the top, and I'm not giving it up.` },
+  { id: 'oak', kind: 'professor', name: 'Professor Oak', poss: 'his', mark: 'O', type: null, color: '#EDE6D6', maxAces: 3,
+    skill: 0.52, loyalty: 0, trainedPct: 22,
+    style: { name: 'Professor', desc: 'The world-famous Pokémon Professor, once a formidable trainer himself' },
+    taunt: `So you've come all this way. Long ago I was a pretty fair trainer myself. Let's see what you've learned!` },
+];
+
+// Every opponent's ace and signature Pokémon live in the same two maps as the gym leaders' (keyed by
+// opponent id), so the draft and battle code treats all of them alike.
+Object.assign(GYM_ACES, {
+  lorelei: gymAce('lorelei', mon('Lapras',    ['Water','Ice'],      115,75,84,53,   ['Water Pulse','Ice Fang'],['Body Slam','Icy Wind'],['Surf','Ice Beam'], ['Blizzard','Hydro Pump'], null)),
+  bruno:   gymAce('bruno',   mon('Hariyama',  ['Fighting'],         121,100,50,42,  ['Brick Break','Rock Slide'],['Low Kick','Ice Punch'],['Close Combat','Thunder Punch'], ['Focus Blast','Earthquake'], null)),
+  agatha:  gymAce('agatha',  mon('Dusknoir',  ['Ghost'],            48,107,145,48,  ['Shadow Punch','Ice Punch'],['Astonish','Fire Punch'],['Shadow Claw','Thunder Punch'], ['Shadow Force','Earthquake'], null)),
+  lance:   gymAce('lance',   mon('Salamence', ['Dragon','Flying'],  92,130,77,96,  ['Dragon Claw','Fire Fang'],['Wing Attack','Crunch'],['Dragon Pulse','Aerial Ace'], ['Draco Meteor','Hurricane'], null)),
+  gary:    gymAce('gary',    mon('Blastoise', ['Water'],            77,83,103,76,   ['Water Pulse','Bite'],['Aqua Tail','Ice Punch'],['Surf','Flash Cannon'], ['Hydro Pump','Blizzard'], null)),
+  oak:     gymAce('oak',     mon('Mew',       ['Psychic'],          97,97,97,97, ['Psybeam','Shadow Claw'],['Swift','Ice Beam'],['Psychic','Thunderbolt'], ['Psystrike','Focus Blast'], null)),
+});
+Object.assign(GYM_SIGNATURES, {
+  lorelei: [
+    gymSignature('lorelei', mon('Dewgong',   ['Water','Ice'],    67,52,71,52,    ['Aqua Tail','Icy Wind'],['Headbutt','Powder Snow'],['Ice Beam','Water Pulse'], ['Blizzard'], null)),
+    gymSignature('lorelei', mon('Walrein',   ['Ice','Water'],    70,58,58,42,   ['Ice Fang','Body Slam'],['Water Gun','Ice Punch'],['Surf','Crunch'], ['Blizzard','Hydro Pump'], null)),
+    gymSignature('lorelei', mon('Weavile',   ['Dark','Ice'],     52,90,49,93,  ['Feint Attack','Ice Fang'],['Quick Attack','Ice Punch'],['Crunch','Icy Wind'], ['Blizzard','Dark Pulse'], null)),
+  ],
+  bruno: [
+    gymSignature('bruno',   mon('Hitmontop', ['Fighting'],       36,69,80,51,   ['Low Kick','Quick Attack'],['Karate Chop','Rock Tomb'],['Close Combat','Dig'], ['Focus Blast'], null)),
+    gymSignature('bruno',   mon('Heracross', ['Bug','Fighting'], 50,78,59,53,   ['Bug Bite','Brick Break'],['Horn Attack','Low Kick'],['X-Scissor','Rock Slide'], ['Megahorn','Close Combat'], null)),
+    gymSignature('bruno',   mon('Medicham',  ['Fighting','Psychic'], 45,68,57,61, ['Karate Chop','Zen Headbutt'],['Confusion','Ice Punch'],['Brick Break','Psycho Cut'], ['Close Combat','Psychic'], null)),
+  ],
+  agatha: [
+    gymSignature('agatha',  mon('Mismagius', ['Ghost'],          40,70,70,70, ['Astonish','Psybeam'],['Lick','Magical Leaf'],['Shadow Ball','Thunderbolt'], ['Shadow Force','Psychic'], null)),
+    gymSignature('agatha',  mon('Banette',   ['Ghost'],          51,92,52,52,   ['Shadow Claw','Feint Attack'],['Lick','Shadow Punch'],['Shadow Ball','Thunder Punch'], ['Shadow Force'], null)),
+    gymSignature('agatha',  mon('Sableye',   ['Dark','Ghost'],   47,70,70,47,    ['Astonish','Bite'],['Shadow Punch','Scratch'],['Shadow Claw','Crunch'], ['Dark Pulse','Shadow Ball'], null)),
+  ],
+  lance: [
+    gymSignature('lance',   mon('Altaria',   ['Dragon','Flying'], 61,57,86,66,  ['Dragon Breath','Aerial Ace'],['Peck','Disarming Voice'],['Dragon Pulse','Air Slash'], ['Draco Meteor'], null)),
+    gymSignature('lance',   mon('Flygon',    ['Ground','Dragon'], 54,68,54,68, ['Bulldoze','Dragon Breath'],['Bite','Dragon Claw'],['Dig','Rock Slide'], ['Earthquake','Draco Meteor'], null)),
+    gymSignature('lance',   mon('Haxorus',   ['Dragon'],         44,85,52,56,   ['Dragon Claw','Scratch'],['Dragon Rage','Brick Break'],['Crunch','Iron Tail'], ['Draco Meteor'], null)),
+  ],
+  gary: [
+    gymSignature('gary',    mon('Arcanine',  ['Fire'],           67,82,59,71,   ['Fire Fang','Crunch'],['Quick Attack','Flame Wheel'],['Flamethrower','Body Slam'], ['Fire Blast'], null)),
+    gymSignature('gary',    mon('Alakazam',  ['Psychic'],        38,94,66,83,  ['Psybeam','Shadow Ball'],['Confusion','Swift'],['Psychic','Thunder Punch'], ['Psystrike','Focus Blast'], null)),
+    gymSignature('gary',    mon('Pidgeot',   ['Normal','Flying'], 71,69,64,87,  ['Wing Attack','Quick Attack'],['Gust','Swift'],['Air Slash','Aerial Ace'], ['Hurricane','Hyper Beam'], null)),
+  ],
+  oak: [
+    gymSignature('oak',     mon('Venusaur',  ['Grass','Poison'], 56,70,70,56,  ['Razor Leaf','Poison Jab'],['Vine Whip','Body Slam'],['Seed Bomb','Sludge Bomb'], ['Solar Beam'], null)),
+    gymSignature('oak',     mon('Charizard', ['Fire','Flying'],  60,84,65,77,  ['Fire Fang','Wing Attack'],['Dragon Claw','Scratch'],['Flamethrower','Air Slash'], ['Fire Blast','Hurricane'], null)),
+    gymSignature('oak',     mon('Tauros',    ['Normal'],         52,69,66,76,  ['Horn Attack','Zen Headbutt'],['Body Slam','Iron Tail'],['Double Edge','Rock Slide'], ['Hyper Beam','Earthquake'], null)),
+  ],
+});
+
+const ALL_OPPONENTS = [...GYM_LEADERS, ...LEAGUE];
+function opponentKind(o) { return (o && o.kind) || 'gym'; }
+function opponentColor(o) { return o.color || TYPE_COLORS[o.type] || COLORS.ash; }
+function opponentMaxAces(o) { return o.maxAces || 1; }
+function leagueIndex(id) { return LEAGUE.findIndex(o => o.id === id); }
+function sortLeague(ids) { return [...new Set(ids || [])].filter(id => leagueIndex(id) >= 0).sort((a, b) => leagueIndex(a) - leagueIndex(b)); }
+const ELITE_FOUR_IDS = LEAGUE.filter(o => o.kind === 'elite').map(o => o.id);
+
+// Hidden until earned (named trainers only -- guests never see the League):
+//   Elite Four: all 8 badges. Champion: all four Elite Four beaten. Professor Oak: the Champion beaten.
+function isLeagueVisible(o, badges, league, isGuest) {
+  if (isGuest) return false;
+  const b = badges || [], w = league || [];
+  if (!GYM_LEADERS.every(l => b.includes(l.id))) return false;
+  if (o.kind === 'elite') return true;
+  if (o.kind === 'champion') return ELITE_FOUR_IDS.every(id => w.includes(id));
+  if (o.kind === 'professor') return w.includes('gary');
+  return false;
+}
+// The Elite Four are faced in order; Gary and Oak are open as soon as they're visible.
+function isLeagueUnlocked(o, badges, league, isGuest) {
+  if (!isLeagueVisible(o, badges, league, isGuest)) return false;
+  if (o.kind !== 'elite') return true;
+  const i = ELITE_FOUR_IDS.indexOf(o.id);
+  return i === 0 || (league || []).includes(ELITE_FOUR_IDS[i - 1]);
+}
+
+function getLeader(id) { return ALL_OPPONENTS.find(l => l.id === id) || null; }
 function gymIndex(id) { return GYM_LEADERS.findIndex(l => l.id === id); }
-function sortBadges(badges) { return [...(badges || [])].filter(id => gymIndex(id) >= 0).sort((a, b) => gymIndex(a) - gymIndex(b)); }
+function sortBadges(badges) { return [...new Set(badges || [])].filter(id => gymIndex(id) >= 0).sort((a, b) => gymIndex(a) - gymIndex(b)); }
 // Gyms open one at a time for a named trainer: beat a leader to unlock the next. Guests can't keep
 // badges, so every gym is open to them as practice.
 function isGymUnlocked(index, badges, isGuest) {
@@ -344,10 +458,11 @@ function getGymPool(leader, count = 15) {
 }
 
 // Snake draft between the challenger (side 0, always first) and the leader (side 1): 0,1 then 1,0
-// then 0,1..., and once one side is done the other finishes. The challenger drafts 6 (5 with a
-// brought-along ace); the leader drafts 2. So: [0,1,1,0,0,0,0,0], or [0,1,1,0,0,0,0] with an ace.
-function getGymPickOrder(humanBringsAce) {
-  const left = [GYM_CHALLENGER_TEAM_SIZE - (humanBringsAce ? 1 : 0), GYM_LEADER_DRAFT_PICKS];
+// then 0,1..., and once one side is done the other finishes. The challenger drafts 6 minus however
+// many earned aces they bring (1, or up to 3 against Professor Oak); the leader drafts 2.
+// So: [0,1,1,0,0,0,0,0], or [0,1,1,0,0,0,0] with one ace. (A boolean works too: true = one ace.)
+function getGymPickOrder(acesBrought) {
+  const left = [GYM_CHALLENGER_TEAM_SIZE - Number(acesBrought || 0), GYM_LEADER_DRAFT_PICKS];
   const order = [];
   for (let round = 0; left[0] + left[1] > 0; round++) {
     for (const side of (round % 2 === 0 ? [0, 1] : [1, 0])) {
@@ -357,11 +472,12 @@ function getGymPickOrder(humanBringsAce) {
   return order;
 }
 
-// Both teams before the draft: the challenger starts with their brought-along ace (if any); the
-// leader starts with their signature Pokémon and their ace.
-function buildGymStartRosters(leaderId, aceId) {
+// Both teams before the draft: the challenger starts with their brought-along aces (an id, a list
+// of ids, or none); the opponent starts with their signature Pokémon and their ace.
+function buildGymStartRosters(leaderId, aceIds) {
+  const ids = Array.isArray(aceIds) ? aceIds : (aceIds ? [aceIds] : []);
   return [
-    aceId ? [{ ...GYM_ACES[aceId], earnedAce: true }] : [],
+    ids.map(id => ({ ...GYM_ACES[id], earnedAce: true })),
     [...gymSignatures(leaderId), GYM_ACES[leaderId]],
   ];
 }
@@ -421,11 +537,11 @@ function standInDraftPick(pool, ownRoster, oppRoster, skill) {
 
 // Gym-trained Pokémon: the leader's drafted picks and signature Pokémon get a flat stat boost (their
 // ace doesn't -- it stays exactly the Pokémon a challenger earns). Shown openly on the team screen.
-function applyGymTraining(p, pct) {
+function applyGymTraining(p, pct, tag = 'GYM-TRAINED') {
   if (!pct) return p;
   const m = 1 + pct / 100;
   const s = p.stats;
-  return { ...p, gymTrained: pct, stats: { hp: Math.round(s.hp * m), atk: Math.round(s.atk * m), def: Math.round(s.def * m), spd: Math.round(s.spd * m) } };
+  return { ...p, gymTrained: pct, trainedTag: tag, stats: { hp: Math.round(s.hp * m), atk: Math.round(s.atk * m), def: Math.round(s.def * m), spd: Math.round(s.spd * m) } };
 }
 
 // Once the gym draft is done: the challenger's brought-along ace moves to the back of their team,
@@ -433,7 +549,8 @@ function applyGymTraining(p, pct) {
 // their batting order.
 function finalizeGymRosters(rosters, leader) {
   const human = [...rosters[0].filter(p => !p.aceOf), ...rosters[0].filter(p => p.aceOf)];
-  const cpu = cpuOrderRoster(rosters[1].map(p => (p.aceOf ? p : applyGymTraining(p, leader.trainedPct))), human[0], leader);
+  const tag = opponentKind(leader) === 'gym' ? 'GYM-TRAINED' : 'LEAGUE-TRAINED';
+  const cpu = cpuOrderRoster(rosters[1].map(p => (p.aceOf ? p : applyGymTraining(p, leader.trainedPct, tag))), human[0], leader);
   return [human, cpu];
 }
 
@@ -755,7 +872,7 @@ const TRANSFORM_TEMPLATES = [
 function narrate(event) {
   switch (event.type) {
     case 'start':
-      if (event.gym) return `${event.t1}, Leader of the ${event.gym.city} Gym, accepts ${event.t0}'s challenge. The ${event.gym.badge} is on the line!`;
+      if (event.gym) return event.gym.line;
       return `${event.t0} and ${event.t1} begin their battle!`;
     case 'transform':
       return fillTemplate(pickVaried('transform', TRANSFORM_TEMPLATES), { from: event.from, into: event.into });
@@ -933,7 +1050,7 @@ function initBattle(roster0, roster1, trainerNames, gym) {
   const active = [0, 0];
   const initiator = teams[0][0].stats.spd >= teams[1][0].stats.spd ? 0 : 1;
   const names = trainerNames || ['Trainer 1', 'Trainer 2'];
-  const startEvent = { type: 'start', t0: names[0], t1: names[1], gym: gym ? { city: gym.city, badge: gym.badge } : null };
+  const startEvent = { type: 'start', t0: names[0], t1: names[1], gym: gym ? { line: opponentStartLine(gym, names[0]) } : null };
   const log = [{ id: 0, event: startEvent, mechanicalText: narrate(startEvent), aiText: null, snapshotAfter: makeSnapshot(teams, active) }];
   return { teams, active, log, pendingBeats: [], beatCounter: 1, initiator, pendingAttackMove: null, winner: null, needsSwitch: [] };
 }
@@ -1074,10 +1191,52 @@ function pickBestVoice(voices) {
 }
 
 // `gym` (VS Computer only) is { leader, challengerIsGuest } -- adds the Gym setting to the story.
+// The opening narration line for a VS Computer battle (shown before the AI intro arrives, and as
+// its fallback).
+function opponentStartLine(o, challenger) {
+  switch (opponentKind(o)) {
+    case 'elite': return `Elite Four ${o.name} awaits ${challenger} at the Indigo Plateau. Only the strongest trainers go any further!`;
+    case 'champion': return `${challenger} climbs the last stairs of the Indigo Plateau. Champion ${o.name} is waiting, and the title is on the line!`;
+    case 'professor': return `In his lab in Pallet Town, Professor Oak sets down his notes and steps up to face ${challenger} in one final battle.`;
+    default: return `${o.name}, Leader of the ${o.city} Gym, accepts ${challenger}'s challenge. The ${o.badge} is on the line!`;
+  }
+}
+
+// Display strings for an opponent on the gym menu and team screen.
+function opponentHeading(o) {
+  switch (opponentKind(o)) {
+    case 'elite': return `ELITE FOUR · ${o.name.toUpperCase()}`;
+    case 'champion': return `CHAMPION ${o.name.toUpperCase()}`;
+    case 'professor': return 'PROFESSOR OAK · PALLET TOWN';
+    default: return `${o.name.toUpperCase()} · ${o.city.toUpperCase()} GYM`;
+  }
+}
+function opponentSubheading(o) {
+  switch (opponentKind(o)) {
+    case 'elite': return `${o.type.toUpperCase()} MASTER · INDIGO PLATEAU`;
+    case 'champion': return 'THE CHAMPIONSHIP IS ON THE LINE';
+    case 'professor': return 'THE FINAL BATTLE · UP TO THREE ACES ALLOWED';
+    default: return `${o.type.toUpperCase()} SPECIALIST · ${o.badge.toUpperCase()} ON THE LINE`;
+  }
+}
+function challengeLabel(o) {
+  if (opponentKind(o) === 'champion') return `CHAMPION ${o.name.toUpperCase()}`;
+  return o.name.toUpperCase();
+}
+
 function gymStoryLine(trainers, gym) {
   if (!gym) return '';
-  const l = gym.leader, ace = GYM_ACES[l.id].name;
-  return `\nThis is an official Gym battle at the ${l.city} Gym. ${l.name} is the Gym Leader, a ${l.type}-type specialist, defending the ${l.badge}; ${trainers[0].name} is the challenger. ${l.name} is saving their ace, ${ace}, for last.\n`;
+  const l = gym.leader, ace = GYM_ACES[l.id].name, c = trainers[0].name;
+  switch (opponentKind(l)) {
+    case 'elite':
+      return `\nThis is a Pokémon League battle at the Indigo Plateau. ${l.name} of the Elite Four, a ${l.type}-type master, stands between ${c} and the Champion. ${l.name} is saving ${l.poss} ace, ${ace}, for last.\n`;
+    case 'champion':
+      return `\nThis is the Championship battle at the Indigo Plateau. ${l.name} is the reigning Pokémon League Champion and ${c}'s lifelong rival; ${c} has beaten all eight Gyms and the Elite Four to get here. ${l.name} is saving his ace, ${ace}, for last.\n`;
+    case 'professor':
+      return `\nThis is a special final battle in Professor Oak's lab in Pallet Town, where ${c}'s journey began. The new Champion faces the professor himself, who was a great trainer long before he was a researcher. He is saving his ace, the mythical ${ace}, for last.\n`;
+    default:
+      return `\nThis is an official Gym battle at the ${l.city} Gym. ${l.name} is the Gym Leader, a ${l.type}-type specialist, defending the ${l.badge}; ${c} is the challenger. ${l.name} is saving their ace, ${ace}, for last.\n`;
+  }
 }
 
 function buildIntroPrompt(trainers, rosters, gym) {
@@ -1163,6 +1322,20 @@ function buildStatsTable(teams, trainers, mvp) {
 function gymResultLine(trainers, winnerIdx, gym) {
   if (!gym) return '';
   const l = gym.leader, ace = GYM_ACES[l.id].name, challenger = trainers[0].name;
+  const kind = opponentKind(l);
+  if (kind !== 'gym') {
+    if (winnerIdx === 0) {
+      if (kind === 'elite') return `${challenger} defeated ${l.name} of the Elite Four and moved one step closer to the Champion.`;
+      if (kind === 'champion') return `${challenger} defeated ${l.name} and became the new Pokémon League Champion, finally settling their rivalry.`;
+      return `${challenger} defeated Professor Oak in the lab where their journey began, and the professor proudly entered them into the Hall of Fame.`;
+    }
+    if (winnerIdx === 1) {
+      if (kind === 'elite') return `${l.name} of the Elite Four held firm; ${challenger} will have to come back stronger.`;
+      if (kind === 'champion') return `${l.name} kept his title as Champion; ${challenger} will have to climb the Indigo Plateau again.`;
+      return `Professor Oak won the day, smiling, and told ${challenger} there is always more to learn.`;
+    }
+    return `The battle with ${l.name} ended in a draw, so ${challenger} will have to try again.`;
+  }
   if (winnerIdx === 0) {
     return gym.challengerIsGuest
       ? `${challenger} beat Gym Leader ${l.name} at the ${l.city} Gym.`
@@ -1338,6 +1511,30 @@ async function recordGymBadge(trainerName, leaderId) {
   }
 }
 
+// League wins (Elite Four, Champion, Professor Oak) are progress, not badges: they unlock the next
+// opponent and earn scoreboard titles. Like badges, they never touch W-L-D or the ELO grade.
+async function recordLeagueWin(trainerName, opponentId) {
+  try {
+    const record = await getTrainerRecord(trainerName);
+    const league = Array.isArray(record.league) ? record.league : [];
+    if (league.includes(opponentId)) return { ok: true, persisted: true, newWin: false, league: sortLeague(league) };
+    record.league = sortLeague([...league, opponentId]);
+    record.displayName = trainerName.trim();
+    const result = await saveTrainerRecord(trainerName, record);
+    return { ...result, newWin: true, league: record.league };
+  } catch (e) {
+    return { ok: false, persisted: false, newWin: false, reason: (e && e.message) ? e.message : String(e) };
+  }
+}
+
+// The highest League title a record has earned, for the scoreboard.
+function leagueTitle(record) {
+  const w = (record && Array.isArray(record.league)) ? record.league : [];
+  if (w.includes('oak')) return 'HALL OF FAME';
+  if (w.includes('gary')) return 'CHAMPION';
+  return null;
+}
+
 async function fetchLeaderboard() {
   const maxAttempts = 3;
   let lastReason = 'unknown error';
@@ -1412,18 +1609,20 @@ function PokemonCard({ pokemon, onClick, interactive = true, selected = false })
       {(pokemon.aceOf || pokemon.signatureOf || pokemon.gymTrained > 0) && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {pokemon.signatureOf && (
-            <span style={{ fontFamily: FONT_MONO, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: TYPE_COLORS[getLeader(pokemon.signatureOf).type], border: `1px solid ${TYPE_COLORS[getLeader(pokemon.signatureOf).type]}`, borderRadius: 10, padding: '1px 7px' }}>
-              {getLeader(pokemon.signatureOf).name.toUpperCase()} EXCLUSIVE
+            <span style={{ fontFamily: FONT_MONO, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: opponentColor(getLeader(pokemon.signatureOf)), border: `1px solid ${opponentColor(getLeader(pokemon.signatureOf))}`, borderRadius: 10, padding: '1px 7px' }}>
+              {['champion', 'professor'].includes(opponentKind(getLeader(pokemon.signatureOf)))
+                ? `${getLeader(pokemon.signatureOf).name.toUpperCase()}'S TEAM`
+                : `${getLeader(pokemon.signatureOf).name.toUpperCase()} EXCLUSIVE`}
             </span>
           )}
           {pokemon.aceOf && (
-            <span style={{ fontFamily: FONT_MONO, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: COLORS.ink, background: TYPE_COLORS[getLeader(pokemon.aceOf).type], borderRadius: 10, padding: '2px 8px' }}>
+            <span style={{ fontFamily: FONT_MONO, fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: COLORS.ink, background: opponentColor(getLeader(pokemon.aceOf)), borderRadius: 10, padding: '2px 8px' }}>
               ★ {pokemon.earnedAce ? `${getLeader(pokemon.aceOf).badge.toUpperCase()} ACE` : `${getLeader(pokemon.aceOf).name.toUpperCase()}'S ACE`}
             </span>
           )}
           {pokemon.gymTrained > 0 && (
             <span style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.08em', color: COLORS.hpMid, border: `1px solid ${COLORS.hpMid}`, borderRadius: 10, padding: '1px 7px' }}>
-              GYM-TRAINED +{pokemon.gymTrained}%
+              {pokemon.trainedTag || 'GYM-TRAINED'} +{pokemon.gymTrained}%
             </span>
           )}
         </div>
@@ -1682,16 +1881,16 @@ function renderStoryText(text) {
 
 // A gym badge: filled with the leader's type color once earned, an empty dashed ring until then.
 function BadgeMedallion({ leader, earned, size = 30 }) {
-  const color = TYPE_COLORS[leader.type];
+  const color = opponentColor(leader);
   return (
-    <div title={leader.badge} style={{
+    <div title={leader.badge || leader.name} style={{
       width: size, height: size, borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box',
       border: earned ? `2px solid ${color}` : `1px dashed ${COLORS.ash}`,
       background: earned ? color : 'transparent', color: earned ? COLORS.ink : COLORS.ash,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: size * 0.45, opacity: earned ? 1 : 0.6,
     }}>
-      {leader.badge.charAt(0)}
+      {leader.mark || leader.badge.charAt(0)}
     </div>
   );
 }
@@ -1792,7 +1991,16 @@ function Leaderboard({ data, onRefresh }) {
               <div style={{ fontFamily: FONT_MONO, color: COLORS.ash, fontSize: 11 }}>{i + 1}</div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.displayName}</div>
-                {Array.isArray(r.badges) && r.badges.length > 0 && <BadgeDots badges={r.badges} />}
+                {((Array.isArray(r.badges) && r.badges.length > 0) || leagueTitle(r)) && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', columnGap: 6 }}>
+                    {Array.isArray(r.badges) && r.badges.length > 0 && <BadgeDots badges={r.badges} />}
+                    {leagueTitle(r) && (
+                      <span style={{ fontFamily: FONT_MONO, fontSize: 8, fontWeight: 600, letterSpacing: '0.08em', color: COLORS.ink, background: '#D9B54A', borderRadius: 8, padding: '1px 5px', marginTop: 3, whiteSpace: 'nowrap' }}>
+                        ★ {leagueTitle(r)}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: COLORS.ash }}>{r.wins}-{r.losses}-{r.draws}</div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: COLORS.ash }}>{winPct}%</div>
@@ -1927,33 +2135,83 @@ function VsSetupScreen({ onContinue, onBack }) {
   );
 }
 
-// The gym menu: badge case, the eight gyms (opening one at a time for a named trainer), the
-// selected leader's details, and which earned ace (if any) to bring along.
+// The gym menu: badge case, the eight gyms (opening one at a time for a named trainer), then the
+// Pokémon League -- each part of which stays hidden until it's earned -- the selected opponent's
+// details, and which earned aces (one, or up to three against Professor Oak) to bring along.
+function OpponentRow({ o, label, sub, tag, open, beaten, selected, disabled, onSelect }) {
+  return (
+    <button disabled={disabled} onClick={onSelect} style={{
+      display: 'grid', gridTemplateColumns: '22px 1fr auto', alignItems: 'center', gap: 8, textAlign: 'left',
+      background: selected ? '#33413C' : COLORS.panel, color: COLORS.paper,
+      border: `${selected ? 2 : 1}px solid ${selected ? COLORS.jadeBright : COLORS.hairline}`,
+      borderRadius: 4, padding: selected ? '6px 9px' : '7px 10px', cursor: disabled ? 'default' : 'pointer', opacity: open ? 1 : 0.45,
+    }}>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash }}>{label}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 16 }}>{o.name}</span>
+          <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: opponentColor(o), letterSpacing: '0.06em' }}>{tag}</span>
+        </div>
+        <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.ash, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
+      </div>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.08em', color: beaten ? COLORS.jadeBright : open ? COLORS.paper : COLORS.ash }}>
+        {beaten ? '✓ WON' : open ? 'OPEN' : 'LOCKED'}
+      </div>
+    </button>
+  );
+}
+
 function GymHubScreen({ challenger, onChallenge, onBack }) {
   const isGuest = challenger.isGuest;
-  const [badges, setBadges] = useState(isGuest ? [] : null);
+  const [progress, setProgress] = useState(isGuest ? { badges: [], league: [] } : null);
   const [selectedId, setSelectedId] = useState(null);
-  const [aceId, setAceId] = useState(null);
+  const [aceIds, setAceIds] = useState([]);
 
   useEffect(() => {
     if (isGuest) return undefined;
     let cancelled = false;
-    const known = challenger.badges || [];
+    const merge = (r) => ({
+      badges: sortBadges([...(Array.isArray(r.badges) ? r.badges : []), ...(challenger.badges || [])]),
+      league: sortLeague([...(Array.isArray(r.league) ? r.league : []), ...(challenger.league || [])]),
+    });
     getTrainerRecord(challenger.name)
-      .then(r => { if (!cancelled) setBadges(sortBadges(Array.from(new Set([...(Array.isArray(r.badges) ? r.badges : []), ...known])))); })
-      .catch(() => { if (!cancelled) setBadges(sortBadges(known)); });
+      .then(r => { if (!cancelled) setProgress(merge(r)); })
+      .catch(() => { if (!cancelled) setProgress(merge({})); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const ready = badges !== null;
-  const earned = badges || [];
-  const nextGym = GYM_LEADERS.find((l, i) => !earned.includes(l.id) && isGymUnlocked(i, earned, isGuest));
-  const activeId = selectedId || (nextGym || GYM_LEADERS[GYM_LEADERS.length - 1]).id;
+  const ready = progress !== null;
+  const earned = ready ? progress.badges : [];
+  const league = ready ? progress.league : [];
+  const leagueShown = LEAGUE.filter(o => isLeagueVisible(o, earned, league, isGuest));
+  const isGym = (o) => opponentKind(o) === 'gym';
+  const isOpen = (o) => (isGym(o) ? isGymUnlocked(gymIndex(o.id), earned, isGuest) : isLeagueUnlocked(o, earned, league, isGuest));
+  const isBeaten = (o) => (isGym(o) ? earned.includes(o.id) : league.includes(o.id));
+  const shown = [...GYM_LEADERS, ...leagueShown];
+  const next = shown.find(o => isOpen(o) && !isBeaten(o));
+  const activeId = selectedId && shown.some(o => o.id === selectedId) ? selectedId : (next || shown[shown.length - 1]).id;
   const leader = getLeader(activeId);
-  const unlocked = isGymUnlocked(gymIndex(activeId), earned, isGuest);
+  const unlocked = isOpen(leader);
+  const maxAces = opponentMaxAces(leader);
   const earnedLeaders = isGuest ? [] : GYM_LEADERS.filter(l => earned.includes(l.id));
-  const chosenAce = aceId && aceId !== activeId && earned.includes(aceId) ? aceId : null;
+  const chosen = aceIds.filter(id => id !== activeId && earned.includes(id)).slice(0, maxAces);
+  const toggleAce = (id) => {
+    if (chosen.includes(id)) setAceIds(chosen.filter(x => x !== id));
+    else if (maxAces === 1) setAceIds([id]);
+    else if (chosen.length < maxAces) setAceIds([...chosen, id]);
+  };
+  const title = league.includes('oak') ? ' · HALL OF FAME' : league.includes('gary') ? ' · CHAMPION' : '';
+  const leagueRowInfo = (o) => {
+    if (o.kind === 'elite') return { label: `E${ELITE_FOUR_IDS.indexOf(o.id) + 1}`, tag: o.type.toUpperCase(), sub: 'Elite Four · Indigo Plateau' };
+    if (o.kind === 'champion') return { label: '★', tag: 'CHAMPION', sub: 'Pokémon League Champion · Indigo Plateau' };
+    return { label: '✦', tag: 'FINAL BATTLE', sub: 'Professor Oak’s Lab · Pallet Town' };
+  };
+  const aceNote = chosen.length > 0
+    ? `${chosen.map(id => GYM_ACES[id].name).join(', ')} ${chosen.length === 1 ? 'takes one' : `take ${chosen.length}`} of your six slots, so you'll draft ${GYM_CHALLENGER_TEAM_SIZE - chosen.length}.`
+    : maxAces > 1 ? 'Professor Oak lets you bring up to three of your aces. Each one takes one of your six slots.'
+    : (isGym(leader) && earned.includes(activeId)) ? `${leader.name}'s own ace can't be brought to ${leader.name}'s gym.`
+    : 'Bringing an ace means drafting five instead of six.';
 
   return (
     <div style={{ minHeight: '100vh', maxWidth: 460, margin: '0 auto', padding: '20px 16px 0', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
@@ -1962,7 +2220,7 @@ function GymHubScreen({ challenger, onChallenge, onBack }) {
       </button>
       <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: 30, color: COLORS.paper, lineHeight: 1 }}>GYM CHALLENGE</div>
       <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: isGuest ? COLORS.hpMid : COLORS.jadeBright, letterSpacing: '0.1em', marginTop: 6 }}>
-        {isGuest ? 'GUEST · PRACTICE MODE · NOTHING IS SAVED' : `${challenger.name.toUpperCase()} · ${ready ? earned.length : '–'}/8 BADGES`}
+        {isGuest ? 'GUEST · PRACTICE MODE · NOTHING IS SAVED' : `${challenger.name.toUpperCase()} · ${ready ? earned.length : '–'}/8 BADGES${title}`}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 2, margin: '14px 0 14px', padding: '10px 6px', background: COLORS.panel, border: `1px solid ${COLORS.hairline}`, borderRadius: 4 }}>
@@ -1977,47 +2235,43 @@ function GymHubScreen({ challenger, onChallenge, onBack }) {
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {GYM_LEADERS.map((l, i) => {
-          const open = isGymUnlocked(i, earned, isGuest);
-          const beaten = earned.includes(l.id);
-          const isSel = l.id === activeId;
-          return (
-            <button key={l.id} disabled={!open || !ready} onClick={() => setSelectedId(l.id)} style={{
-              display: 'grid', gridTemplateColumns: '18px 1fr auto', alignItems: 'center', gap: 10, textAlign: 'left',
-              background: isSel ? '#33413C' : COLORS.panel, color: COLORS.paper,
-              border: `${isSel ? 2 : 1}px solid ${isSel ? COLORS.jadeBright : COLORS.hairline}`,
-              borderRadius: 4, padding: isSel ? '6px 9px' : '7px 10px', cursor: open && ready ? 'pointer' : 'default', opacity: open ? 1 : 0.45,
-            }}>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: COLORS.ash }}>{i + 1}</div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 16 }}>{l.name}</span>
-                  <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: TYPE_COLORS[l.type], letterSpacing: '0.06em' }}>{l.type.toUpperCase()}</span>
-                </div>
-                <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.ash, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {l.city} · {l.badge}
-                </div>
-              </div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.08em', color: beaten ? COLORS.jadeBright : open ? COLORS.paper : COLORS.ash }}>
-                {beaten ? '✓ WON' : open ? 'OPEN' : 'LOCKED'}
-              </div>
-            </button>
-          );
-        })}
+        {GYM_LEADERS.map((l, i) => (
+          <OpponentRow key={l.id} o={l} label={String(i + 1)} tag={l.type.toUpperCase()} sub={`${l.city} · ${l.badge}`}
+            open={isOpen(l)} beaten={isBeaten(l)} selected={l.id === activeId} disabled={!isOpen(l) || !ready} onSelect={() => setSelectedId(l.id)} />
+        ))}
       </div>
 
-      <div style={{ marginTop: 12, padding: '12px 14px', background: COLORS.panel, border: `1px solid ${TYPE_COLORS[leader.type]}`, borderRadius: 4 }}>
+      {leagueShown.length > 0 && (
+        <>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: '#D9B54A', letterSpacing: '0.15em', margin: '18px 0 8px', textAlign: 'center' }}>
+            ★ THE POKÉMON LEAGUE ★
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {leagueShown.map(o => {
+              const info = leagueRowInfo(o);
+              return (
+                <OpponentRow key={o.id} o={o} label={info.label} tag={info.tag} sub={info.sub}
+                  open={isOpen(o)} beaten={isBeaten(o)} selected={o.id === activeId} disabled={!isOpen(o) || !ready} onSelect={() => setSelectedId(o.id)} />
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      <div style={{ marginTop: 12, padding: '12px 14px', background: COLORS.panel, border: `1px solid ${opponentColor(leader)}`, borderRadius: 4 }}>
         <div style={{ fontFamily: FONT_BODY, fontSize: 13, fontStyle: 'italic', color: COLORS.paper, lineHeight: 1.45 }}>
           “{leader.taunt}” <span style={{ fontStyle: 'normal', color: COLORS.ash }}>— {leader.name}</span>
         </div>
         <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.ash, marginTop: 8, letterSpacing: '0.05em' }}>
-          ACE: {GYM_ACES[leader.id].name.toUpperCase()} · FIELDS {gymTeamSize(leader) === 6 ? 'SIX' : 'THREE'} POKÉMON{leader.trainedPct > 0 ? ` · GYM-TRAINED +${leader.trainedPct}%` : ''}
+          ACE: {GYM_ACES[leader.id].name.toUpperCase()} · FIELDS {gymTeamSize(leader) === 6 ? 'SIX' : 'THREE'} POKÉMON{leader.trainedPct > 0 ? ` · ${isGym(leader) ? 'GYM' : 'LEAGUE'}-TRAINED +${leader.trainedPct}%` : ''}
         </div>
       </div>
 
       {!isGuest && ready && (
         <div style={{ marginTop: 14 }}>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash, letterSpacing: '0.1em', marginBottom: 8 }}>BRING AN ACE</div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash, letterSpacing: '0.1em', marginBottom: 8 }}>
+            {maxAces > 1 ? `BRING UP TO ${maxAces} ACES` : 'BRING AN ACE'}
+          </div>
           {earnedLeaders.length === 0 ? (
             <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: COLORS.ash, lineHeight: 1.5 }}>
               Beat a Gym Leader to earn their badge and their ace. You can bring one ace into any VS Computer battle.
@@ -2025,16 +2279,13 @@ function GymHubScreen({ challenger, onChallenge, onBack }) {
           ) : (
             <>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                <AceChip label="None" active={!chosenAce} onClick={() => setAceId(null)} />
+                <AceChip label="None" active={chosen.length === 0} onClick={() => setAceIds([])} />
                 {earnedLeaders.map(l => (
-                  <AceChip key={l.id} label={GYM_ACES[l.id].name} color={TYPE_COLORS[l.type]} active={chosenAce === l.id} disabled={l.id === activeId} onClick={() => setAceId(l.id)} />
+                  <AceChip key={l.id} label={GYM_ACES[l.id].name} color={opponentColor(l)} active={chosen.includes(l.id)}
+                    disabled={l.id === activeId || (!chosen.includes(l.id) && maxAces > 1 && chosen.length >= maxAces)} onClick={() => toggleAce(l.id)} />
                 ))}
               </div>
-              <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: COLORS.ash, marginTop: 8, lineHeight: 1.45 }}>
-                {chosenAce
-                  ? `${GYM_ACES[chosenAce].name} takes one of your six slots, so you'll draft five.`
-                  : earned.includes(activeId) ? `${leader.name}'s own ace can't be brought to ${leader.name}'s gym.` : 'Bringing an ace means drafting five instead of six.'}
-              </div>
+              <div style={{ fontFamily: FONT_BODY, fontSize: 11, color: COLORS.ash, marginTop: 8, lineHeight: 1.45 }}>{aceNote}</div>
             </>
           )}
         </div>
@@ -2043,14 +2294,14 @@ function GymHubScreen({ challenger, onChallenge, onBack }) {
       <div style={{ position: 'sticky', bottom: 0, background: COLORS.ink, padding: '14px 0 20px', marginTop: 'auto' }}>
         <button
           disabled={!ready || !unlocked}
-          onClick={() => onChallenge(activeId, chosenAce)}
+          onClick={() => onChallenge(activeId, chosen)}
           style={{
             width: '100%', background: COLORS.jade, color: COLORS.paper, border: 'none', borderRadius: 4, padding: '14px',
             fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 18, letterSpacing: '0.05em', cursor: ready && unlocked ? 'pointer' : 'default',
             opacity: ready && unlocked ? 1 : 0.5,
           }}
         >
-          {ready ? `CHALLENGE ${leader.name.toUpperCase()}` : 'LOADING BADGES…'}
+          {ready ? `CHALLENGE ${challengeLabel(leader)}` : 'LOADING BADGES…'}
         </button>
       </div>
     </div>
@@ -2097,7 +2348,7 @@ function DraftScreen({ trainers, pool, rosters, pickOrder, pickIndex, onPick, on
           {rosters.map((roster, i) => (
             <div key={i} style={{ flex: 1, display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: i === 1 ? 'flex-end' : 'flex-start' }}>
               {roster.map(p => (
-                <div key={p.name} style={{ fontSize: 9, fontFamily: FONT_MONO, color: (p.aceOf || p.signatureOf) ? COLORS.paper : COLORS.ash, border: `1px solid ${(p.aceOf || p.signatureOf) ? TYPE_COLORS[getLeader(p.aceOf || p.signatureOf).type] : COLORS.hairline}`, borderRadius: 20, padding: '2px 7px' }}>
+                <div key={p.name} style={{ fontSize: 9, fontFamily: FONT_MONO, color: (p.aceOf || p.signatureOf) ? COLORS.paper : COLORS.ash, border: `1px solid ${(p.aceOf || p.signatureOf) ? opponentColor(getLeader(p.aceOf || p.signatureOf)) : COLORS.hairline}`, borderRadius: 20, padding: '2px 7px' }}>
                   {p.aceOf ? '★ ' : ''}{p.name}
                 </div>
               ))}
@@ -2157,25 +2408,27 @@ function ReviewScreen({ trainers, rosters, onBattle, onReset, gym = null, backLa
       <button onClick={onReset} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0, marginBottom: 20 }}>
         &larr; {backLabel}
       </button>
-      <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: 30, color: COLORS.paper, marginBottom: gym ? 16 : 28 }}>{gym ? 'GYM BATTLE' : 'TEAMS SET'}</div>
+      <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: 30, color: COLORS.paper, marginBottom: gym ? 16 : 28 }}>{gym ? ({ elite: 'ELITE FOUR', champion: 'CHAMPIONSHIP', professor: 'FINAL BATTLE' }[opponentKind(gym)] || 'GYM BATTLE') : 'TEAMS SET'}</div>
       {gym && (
-        <div style={{ width: '100%', maxWidth: 460, marginBottom: 28, background: COLORS.panel, border: `1px solid ${TYPE_COLORS[gym.type]}`, borderRadius: 4, padding: '14px 16px', boxSizing: 'border-box' }}>
+        <div style={{ width: '100%', maxWidth: 460, marginBottom: 28, background: COLORS.panel, border: `1px solid ${opponentColor(gym)}`, borderRadius: 4, padding: '14px 16px', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
             <BadgeMedallion leader={gym} earned size={30} />
             <div>
-              <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 18, color: COLORS.paper, lineHeight: 1.1 }}>{gym.name.toUpperCase()} · {gym.city.toUpperCase()} GYM</div>
-              <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.ash, letterSpacing: '0.08em', marginTop: 2 }}>{gym.type.toUpperCase()} SPECIALIST · {gym.badge.toUpperCase()} ON THE LINE</div>
+              <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 18, color: COLORS.paper, lineHeight: 1.1 }}>{opponentHeading(gym)}</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.ash, letterSpacing: '0.08em', marginTop: 2 }}>{opponentSubheading(gym)}</div>
             </div>
           </div>
           <div style={{ fontFamily: FONT_BODY, fontSize: 14, fontStyle: 'italic', color: COLORS.paper, lineHeight: 1.5 }}>“{gym.taunt}”</div>
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.jadeBright, marginTop: 10, lineHeight: 1.4 }}>
-            {gymTeamSize(gym) === 6
-              ? `${gym.name} fields a full six against your six: two drafted, three gym exclusives, and their ace.`
-              : `${gym.name} fields three Pokémon against your six: two drafted, plus their ace.`}
+            {gymTeamSize(gym) === 3
+              ? `${gym.name} fields three Pokémon against your six: two drafted, plus their ace.`
+              : opponentKind(gym) === 'gym'
+                ? `${gym.name} fields a full six against your six: two drafted, three gym exclusives, and their ace.`
+                : `${gym.name} fields a full six against your six: two drafted, three of ${gym.poss} own, and ${gym.poss} ace.`}
           </div>
           {gym.trainedPct > 0 && (
             <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.hpMid, marginTop: 10, lineHeight: 1.4 }}>
-              {gym.name}'s team is gym-trained: +{gym.trainedPct}% to every stat on everyone but the ace.
+              {gym.name}'s team is {opponentKind(gym) === 'gym' ? 'gym' : 'league'}-trained: +{gym.trainedPct}% to every stat on everyone but the ace.
             </div>
           )}
         </div>
@@ -2208,10 +2461,31 @@ function ReviewScreen({ trainers, rosters, onBattle, onReset, gym = null, backLa
           cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
         }}
       >
-        <Swords size={18} /> {gym ? 'BEGIN GYM BATTLE' : 'BEGIN BATTLE'}
+        <Swords size={18} /> {gym ? (opponentKind(gym) === 'gym' ? 'BEGIN GYM BATTLE' : 'BEGIN LEAGUE BATTLE') : 'BEGIN BATTLE'}
       </button>
     </div>
   );
+}
+
+// What a finished League battle means: the next step unlocked (Elite Four), the title (Champion),
+// the Hall of Fame (Professor Oak) -- or the opponent holding firm.
+function leagueResultText(l, result) {
+  const kind = opponentKind(l);
+  if (!result.won) {
+    const title = kind === 'champion' ? `${l.name.toUpperCase()} KEEPS THE TITLE` : `${l.name.toUpperCase()} WINS THIS ONE`;
+    return { title, body: 'Rework your draft and try again. League losses never count against your scoreboard record.', earned: false };
+  }
+  if (result.saving) return { title: kind === 'professor' ? 'HALL OF FAME!' : kind === 'champion' ? 'YOU ARE THE CHAMPION!' : `${l.name.toUpperCase()} DEFEATED!`, body: 'Saving your progress…', earned: true };
+  const again = result.newWin === false && result.ok;
+  if (kind === 'elite') {
+    const i = ELITE_FOUR_IDS.indexOf(l.id);
+    const nextUp = i < ELITE_FOUR_IDS.length - 1 ? `Next up: Elite Four ${getLeader(ELITE_FOUR_IDS[i + 1]).name}.` : 'All four of the Elite Four are down. The Champion is waiting.';
+    return { title: `${l.name.toUpperCase()} DEFEATED!`, body: again ? `You've beaten ${l.name} before. ${nextUp}` : nextUp, earned: true };
+  }
+  if (kind === 'champion') {
+    return { title: 'YOU ARE THE CHAMPION!', body: again ? `You've beaten ${l.name} before, and the title is still yours.` : `You beat ${l.name} and took his title. Professor Oak would like a word: one last battle waits in Pallet Town.`, earned: true };
+  }
+  return { title: 'HALL OF FAME!', body: again ? 'You beat Professor Oak again. Your place in the Hall of Fame is secure.' : 'Professor Oak proudly enters you into the Hall of Fame. Your journey is complete.', earned: true };
 }
 
 // What a finished gym battle means: badge earned (plus the ace that comes with it), badge already
@@ -2221,7 +2495,11 @@ function GymResultPanel({ gym, result }) {
   const l = gym.leader;
   const ace = GYM_ACES[l.id];
   let title, body, earned = false, note = null;
-  if (!result.won) {
+  if (opponentKind(l) !== 'gym') {
+    ({ title, body, earned } = leagueResultText(l, result));
+    if (result.won && !result.saving && !result.ok) note = `Couldn't save your progress (${result.reason}).`;
+    else if (result.won && !result.saving && result.persisted === false) note = `Saved for this session only (${result.reason}).`;
+  } else if (!result.won) {
     title = `${l.name.toUpperCase()} KEEPS THE ${l.badge.toUpperCase()}`;
     body = `Rework your draft and challenge ${l.name} again. Gym losses never count against your scoreboard record.`;
   } else if (result.guest) {
@@ -2243,7 +2521,7 @@ function GymResultPanel({ gym, result }) {
     else if (!result.persisted) note = `Saved for this session only (${result.reason}).`;
   }
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'center', textAlign: 'left', background: COLORS.panel, border: `1px solid ${earned ? TYPE_COLORS[l.type] : COLORS.hairline}`, borderRadius: 4, padding: '12px 14px', marginBottom: 20 }}>
+    <div style={{ display: 'flex', gap: 12, alignItems: 'center', textAlign: 'left', background: COLORS.panel, border: `1px solid ${earned ? opponentColor(l) : COLORS.hairline}`, borderRadius: 4, padding: '12px 14px', marginBottom: 20 }}>
       <BadgeMedallion leader={l} earned={earned} size={40} />
       <div style={{ minWidth: 0 }}>
         <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 16, color: earned ? COLORS.paper : COLORS.ash, lineHeight: 1.15 }}>{title}</div>
@@ -2341,8 +2619,9 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
       if (battle.winner !== 0) { setGymResult({ won: false }); return; }
       if (trainers[0].isGuest) { setGymResult({ won: true, guest: true }); return; }
       setGymResult({ won: true, saving: true });
-      if (onGymResult) onGymResult([gym.leader.id]);
-      recordGymBadge(trainers[0].name, gym.leader.id).then(result => {
+      const isGymBattle = opponentKind(gym.leader) === 'gym';
+      if (onGymResult) onGymResult(isGymBattle ? 'badges' : 'league', [gym.leader.id]);
+      (isGymBattle ? recordGymBadge : recordLeagueWin)(trainers[0].name, gym.leader.id).then(result => {
         if (mountedRef.current) setGymResult({ won: true, ...result });
       }).catch(e => {
         if (mountedRef.current) setGymResult({ won: true, ok: false, reason: (e && e.message) ? e.message : String(e) });
@@ -2618,7 +2897,7 @@ export default function App() {
   const [pickIndex, setPickIndex] = useState(0);
   const [rosters, setRosters] = useState([[], []]);
   const [battleOptions, setBattleOptions] = useState({ audio: false, quick: false });
-  // VS Computer: the current challenge ({ leaderId, aceId }) and who's taking it on.
+  // VS Computer: the current challenge ({ leaderId, aceIds }) and who's taking it on.
   const [gym, setGym] = useState(null);
   const [challenger, setChallenger] = useState(null);
 
@@ -2642,25 +2921,31 @@ export default function App() {
 
   const enterGyms = (rawName) => {
     const trimmed = rawName.trim();
-    setChallenger({ name: trimmed || 'Guest', isGuest: trimmed.length === 0, badges: [] });
+    setChallenger({ name: trimmed || 'Guest', isGuest: trimmed.length === 0, badges: [], league: [] });
     setPhase('gym-hub');
   };
 
-  const startGymChallenge = (leaderId, aceId) => {
+  const startGymChallenge = (leaderId, aceIds) => {
+    const aces = Array.isArray(aceIds) ? aceIds : (aceIds ? [aceIds] : []);
     const leader = getLeader(leaderId);
     setTrainers([
       { name: challenger.name, isGuest: challenger.isGuest, style: BATTLE_STYLES[Math.floor(Math.random() * BATTLE_STYLES.length)] },
       { name: leader.name, isGuest: false, isCpu: true, style: leader.style },
     ]);
-    setGym({ leaderId, aceId: aceId || null });
+    setGym({ leaderId, aceIds: aces });
     setPool(getGymPool(leader));
-    setPickOrder(getGymPickOrder(!!aceId));
+    setPickOrder(getGymPickOrder(aces.length));
     setPickIndex(0);
-    setRosters(buildGymStartRosters(leaderId, aceId));
+    setRosters(buildGymStartRosters(leaderId, aces));
     setPhase('drafting');
   };
 
-  const noteBadges = (badgeIds) => setChallenger(prev => (prev ? { ...prev, badges: sortBadges(Array.from(new Set([...(prev.badges || []), ...badgeIds]))) } : prev));
+  // A win is passed up right away (before the save finishes) so the gym menu shows it immediately.
+  const noteProgress = (field, ids) => setChallenger(prev => {
+    if (!prev) return prev;
+    const merged = [...(prev[field] || []), ...ids];
+    return { ...prev, [field]: field === 'badges' ? sortBadges(merged) : sortLeague(merged) };
+  });
 
   const draftPick = (pokemon) => {
     const trainerIdx = pickOrder[pickIndex];
@@ -2723,7 +3008,7 @@ export default function App() {
         {phase === 'battle' && (
           <BattleScreen trainers={trainers} rosters={rosters} audioEnabled={battleOptions.audio} quickBattle={battleOptions.quick}
             onBack={() => setPhase('review')} onPlayAgain={gym ? backToGyms : reset} onHome={reset}
-            gym={gym ? { leader, challengerIsGuest: trainers[0].isGuest } : null} onGymResult={noteBadges} />
+            gym={gym ? { leader, challengerIsGuest: trainers[0].isGuest } : null} onGymResult={noteProgress} />
         )}
       </div>
     </div>

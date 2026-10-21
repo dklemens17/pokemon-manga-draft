@@ -26,7 +26,14 @@ Every game deals a fresh pool of 15 Pokémon. Trainers snake-draft three each, t
 - Each leader's **ace** is a fully evolved Pokémon that never appears in the 2-player draft. Beat the leader and you earn their badge, and the ace becomes yours to bring into later VS Computer battles. It takes one of your six slots. Gym exclusives are never earned.
 - Later leaders also bring stronger aces and a small "gym-trained" stat boost on everyone but their ace (shown on the team screen).
 - Difficulty is tuned by simulating players who draft for type advantage (Water and Grass against Brock, and so on). Such a player wins about three times in four against Brock, about half the time against Erika, and about one in three against Giovanni. Drafting for stats as well as type does better.
-- Gym battles never change your scoreboard record or grade. Badges show as colored dots next to your name on the scoreboard.
+- Gym and League battles never change your scoreboard record or grade. Badges show as colored dots next to your name on the scoreboard.
+
+**The Pokémon League.** After the gyms comes the Indigo Plateau, and each step stays hidden until you've earned it:
+
+- **Elite Four**: Lorelei (Ice), Bruno (Fighting), Agatha (Ghost) and Lance (Dragon), faced in order. They appear only once a named trainer holds all 8 badges.
+- **Champion Gary**: appears only after all four of the Elite Four are beaten. Win and you're the Champion.
+- **Professor Oak**: a special final battle in his lab in Pallet Town, which appears only after you beat Gary. His ace is Mew, and he lets you bring up to three of your earned aces instead of one. Beat him to enter the Hall of Fame.
+- Every League opponent fields a full six (two drafted, plus four of their own with their ace last). League wins are saved as progress and show on the scoreboard as **★ CHAMPION** or **★ HALL OF FAME**. Guests never see the League.
 
 ## Run it locally
 
