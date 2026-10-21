@@ -652,6 +652,7 @@ function maybeEvolve(target) {
   const evo = target.evolvesTo;
   const picked = evo.branch ? evo.branch[Math.floor(Math.random() * evo.branch.length)] : evo;
   const oldName = target.name;
+  const oldTypes = [...target.types];
   target.name = picked.name;
   target.types = picked.types;
   const mult = evo.mult;
@@ -663,7 +664,7 @@ function maybeEvolve(target) {
   target.currentHp = target.maxHp;
   target.hasEvolved = true;
   target.evolvesTo = picked.evolvesTo || null;
-  return { from: oldName, to: picked.name, note: picked.note || null };
+  return { from: oldName, to: picked.name, note: picked.note || null, fromTypes: oldTypes, toTypes: [...picked.types], mult };
 }
 
 // Checks whether this actor discovers a New Move RIGHT NOW, before their move resolves.
@@ -2195,6 +2196,14 @@ function readableOn(hex) {
   const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.3 ? COLORS.ink : COLORS.paper;
 }
+// Dark type colors (Dark, Ghost, Poison...) get lifted toward white so they still glow on a dark screen.
+function glowColor(hex) {
+  if (readableOn(hex) !== COLORS.paper) return hex;
+  const h = (hex || '#888888').replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map(x => x + x).join('') : h, 16);
+  const mix = v => Math.round(v + (255 - v) * 0.45).toString(16).padStart(2, '0');
+  return `#${mix((n >> 16) & 255)}${mix((n >> 8) & 255)}${mix(n & 255)}`;
+}
 function svgTile(w, h, body) {
   return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}' viewBox='0 0 ${w} ${h}'>${body}</svg>`)}")`;
 }
@@ -2307,6 +2316,7 @@ function VersusSplash({ leader, trainers, rosters, onBegin }) {
 
 // The ace's entrance: a skewed banner sweeps across the screen, then clears itself (tap to skip).
 function AceBanner({ leader, aceName, onDone }) {
+  const skip = useSkipAfter(onDone, 500);
   useEffect(() => {
     const t = setTimeout(onDone, 2000);
     return () => clearTimeout(t);
@@ -2316,7 +2326,7 @@ function AceBanner({ leader, aceName, onDone }) {
   const fg = readableOn(color);
   const lines = ARENA_PATTERNS.speedlines(hexA(fg === COLORS.ink ? '#FFFFFF' : '#000000', 0.25));
   return (
-    <div role="status" aria-label={`${leader.name}'s ace, ${aceName}`} onClick={onDone} className="ace-fade" style={{ position: 'fixed', inset: 0, zIndex: 55, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer' }}>
+    <div role="status" aria-label={`${leader.name}'s ace, ${aceName}`} onClick={skip} className="ace-fade" style={{ position: 'fixed', inset: 0, zIndex: 55, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer' }}>
       <div className="ace-sweep" style={{ width: '150%', padding: '24px 0', position: 'relative', background: `linear-gradient(90deg, transparent, ${color} 20%, ${color} 80%, transparent)` }}>
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, backgroundImage: lines.image }} />
         <div style={{ position: 'relative', transform: 'skewY(7deg)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
@@ -2356,6 +2366,68 @@ function TeamPips({ snapshot, align, aceIndices = [] }) {
         );
       })}
       {align !== 'right' && count}
+    </div>
+  );
+}
+
+// The evolution sequence (about 3.5s, tap to skip): the old name glows in its type color, light rays
+// turn and an orb pulses, the old and new names flicker back and forth faster and faster, a white
+// flash, then the new name lands with its types, "fully healed" and its actual stat boost. All the
+// timing lives in the evo-* CSS keyframes; each element's resting style is its FINAL state, so with
+// reduced motion (animations off) it simply shows the result.
+// Overlays that appear right after a tap ignore taps for a moment, so a quick double tap on
+// CONTINUE doesn't skip them by accident.
+function useSkipAfter(onDone, graceMs) {
+  const shownAt = useRef(Date.now());
+  return () => { if (Date.now() - shownAt.current >= graceMs) onDone(); };
+}
+
+function EvolutionOverlay({ evo, onDone }) {
+  const skip = useSkipAfter(onDone, 700);
+  useEffect(() => {
+    const t = setTimeout(onDone, 3600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const c1 = glowColor(TYPE_COLORS[(evo.fromTypes || [])[0]] || COLORS.jadeBright);
+  const c2 = glowColor(TYPE_COLORS[(evo.toTypes || [])[0]] || COLORS.jadeBright);
+  const nameStyle = {
+    position: 'absolute', left: 0, right: 0, top: 0, fontFamily: FONT_DISPLAY, fontWeight: 900,
+    fontSize: 50, lineHeight: 1.05, letterSpacing: '0.02em', overflowWrap: 'anywhere',
+  };
+  const sparks = [[-120, -70, 0], [118, -86, 0.08], [-96, 64, 0.16], [104, 58, 0.04], [0, -118, 0.12], [-150, 6, 0.2], [150, -6, 0.1]];
+  return (
+    <div role="status" aria-label={`${evo.from} evolved into ${evo.to}`} onClick={skip} className="evo-root" style={{
+      position: 'fixed', inset: 0, zIndex: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer',
+      background: `radial-gradient(circle at 50% 38%, ${hexA(c2, 0.3)}, transparent 62%), #0E0C0A`,
+    }}>
+      <div aria-hidden="true" className="evo-rays" style={{ position: 'absolute', left: '50%', top: '38%', width: '220vmax', height: '220vmax', marginLeft: '-110vmax', marginTop: '-110vmax', background: `repeating-conic-gradient(from 0deg, ${hexA(c2, 0.22)} 0deg 6deg, transparent 6deg 18deg)` }} />
+      <div aria-hidden="true" className="evo-orb" style={{ position: 'absolute', left: '50%', top: '38%', width: 240, height: 240, marginLeft: -120, marginTop: -120, borderRadius: '50%', background: `radial-gradient(circle, #FFFFFF 0%, ${hexA(c2, 0.8)} 30%, ${hexA(c1, 0)} 68%)` }} />
+      {sparks.map(([x, y, d], i) => (
+        <span key={i} aria-hidden="true" className="evo-spark" style={{ position: 'absolute', left: '50%', top: '38%', width: 18, height: 18, marginLeft: x - 9, marginTop: y - 9, animationDelay: `${d}s`, background: COLORS.paper, clipPath: 'polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%)' }} />
+      ))}
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 'calc(38% - 118px)', margin: '0 auto', width: '100%', maxWidth: 440, textAlign: 'center', padding: '0 20px', boxSizing: 'border-box' }}>
+        <div className="evo-label" style={{ fontFamily: FONT_MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.3em', color: COLORS.paper }}>✦ EVOLUTION ✦</div>
+        {evo.note && <div className="evo-label" style={{ fontFamily: FONT_BODY, fontStyle: 'italic', fontSize: 14, color: COLORS.paper, opacity: 0.85, marginTop: 8 }}>{evo.note}</div>}
+        <div style={{ position: 'relative', height: 112, marginTop: 14 }}>
+          <div aria-hidden="true" className="evo-old" style={{ ...nameStyle, color: c1, textShadow: '0 0 14px rgba(255,255,255,0.35)' }}>{evo.from.toUpperCase()}</div>
+          <div className="evo-new" style={{ ...nameStyle }}>
+            <span className="evo-new-pop" style={{ display: 'inline-block', color: COLORS.paper, textShadow: `0 0 22px ${c2}, 0 0 6px #FFFFFF` }}>{evo.to.toUpperCase()}</span>
+          </div>
+        </div>
+        <div className="evo-reveal" style={{ marginTop: 92 }}>
+          <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 10, background: 'rgba(14,12,10,0.82)', border: `1px solid ${hexA(c2, 0.6)}`, borderRadius: 14, padding: '12px 18px' }}>
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+              {(evo.toTypes || []).map(t => <StampBadge key={t} type={t} size={30} />)}
+            </div>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', color: COLORS.paper }}>
+              FULLY HEALED{evo.mult ? ` · STATS ×${evo.mult}` : ''}
+            </div>
+          </div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.1em', color: COLORS.ash, marginTop: 16 }}>TAP TO CONTINUE</div>
+        </div>
+      </div>
+      <div aria-hidden="true" className="evo-flash" style={{ position: 'absolute', inset: 0, background: '#FFFFFF', pointerEvents: 'none' }} />
     </div>
   );
 }
@@ -2997,6 +3069,8 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
   // and which in-battle lines the opponent has already said.
   const [splashOpen, setSplashOpen] = useState(!!gym);
   const [aceBanner, setAceBanner] = useState(null);
+  const [evolution, setEvolution] = useState(null);
+  const evolutionsShownRef = useRef(new Set());
   const announcedRef = useRef({ ace: false, last: false });
   const aceIndex1 = gym ? rosters[1].findIndex(p => p.aceOf) : -1;
   const aceIndices = [rosters[0].map((p, i) => (p.earnedAce ? i : -1)).filter(i => i >= 0), aceIndex1 >= 0 ? [aceIndex1] : []];
@@ -3133,7 +3207,7 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
   const handleContinue = () => setBattle(prev => revealNextBeat(prev));
 
   useEffect(() => {
-    if (!quickBattle || (!showAttackChoice && !showDefenseChoice) || splashOpen || aceBanner) return;
+    if (!quickBattle || (!showAttackChoice && !showDefenseChoice) || splashOpen || aceBanner || evolution) return;
     let timer;
     if (showAttackChoice && attackerSide !== cpuSide && !isKeyAttackMoment(attackerBattler)) {
       timer = setTimeout(() => {
@@ -3155,11 +3229,11 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
     }
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quickBattle, showAttackChoice, showDefenseChoice, attackerBattler, defenderBattler, splashOpen, aceBanner]);
+  }, [quickBattle, showAttackChoice, showDefenseChoice, attackerBattler, defenderBattler, splashOpen, aceBanner, evolution]);
 
   // VS Computer: whenever side 1 owes an action (switch in, attack, or defend), the leader takes it
   // after a short pause so it reads like they're thinking. Story beats still wait on CONTINUE.
-  const cpuOwesAction = cpuSide !== null && !hasMoreBeats && battle.winner === null && !splashOpen && !aceBanner && (
+  const cpuOwesAction = cpuSide !== null && !hasMoreBeats && battle.winner === null && !splashOpen && !aceBanner && !evolution && (
     battle.needsSwitch.length > 0 ? battle.needsSwitch[0] === cpuSide
       : battle.pendingAttackMove === null ? attackerSide === cpuSide
       : defenderSide === cpuSide);
@@ -3197,6 +3271,14 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [battle]);
 
+  // Play the evolution sequence the moment an evolve beat becomes the newest line of the story.
+  useEffect(() => {
+    const latest = battle.log[battle.log.length - 1];
+    if (!latest || latest.event.type !== 'evolve' || evolutionsShownRef.current.has(latest.id)) return;
+    evolutionsShownRef.current.add(latest.id);
+    setEvolution({ ...latest.event, key: latest.id });
+  }, [battle.log.length]);
+
   const closingLine = gym && battle.winner !== null
     ? leaderLine(gym.leader, battle.winner === 1 ? 'win' : battle.winner === 0 ? (gym.challengerIsGuest && opponentKind(gym.leader) === 'gym' ? 'loseGuest' : 'lose') : 'draw')
     : null;
@@ -3217,6 +3299,7 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
     <>
     {gym && <ArenaBackdrop leader={gym.leader} />}
     {gym && aceBanner && <AceBanner leader={gym.leader} aceName={aceBanner} onDone={() => setAceBanner(null)} />}
+    {evolution && <EvolutionOverlay key={evolution.key} evo={evolution} onDone={() => setEvolution(null)} />}
     {/* While battling, the screen is exactly one viewport tall (battle-fit = 100dvh): the header and
         the controls stay put and only the story scrolls between them, so the move buttons are always
         on screen. The result screen goes back to normal page scrolling for the epilogue and stats. */}
@@ -3549,7 +3632,29 @@ export default function App() {
         @keyframes aceFadeKf { 0% { opacity: 0; } 10% { opacity: 1; } 82% { opacity: 1; } 100% { opacity: 0; } }
         .ace-sweep { transform: skewY(-7deg); animation: aceSweepKf 2s cubic-bezier(.2,.8,.2,1) both; }
         .ace-fade { animation: aceFadeKf 2s linear both; }
+        .evo-old { opacity: 0; } .evo-flash { opacity: 0; } .evo-spark { opacity: 0; } .evo-rays { opacity: 0.5; }
+        @keyframes evoRootKf { 0% { opacity: 0; } 5% { opacity: 1; } 92% { opacity: 1; } 100% { opacity: 0; } }
+        @keyframes evoRaysKf { 0% { opacity: 0; transform: rotate(0deg); } 30% { opacity: 0.55; } 60% { opacity: 1; } 100% { opacity: 0.5; transform: rotate(140deg); } }
+        @keyframes evoOrbKf { 0% { transform: scale(0.2); opacity: 0; } 18% { transform: scale(0.75); opacity: 0.8; } 28% { transform: scale(0.55); } 38% { transform: scale(0.95); } 46% { transform: scale(0.65); } 54% { transform: scale(1.15); } 60% { transform: scale(2.6); opacity: 1; } 70% { transform: scale(1); opacity: 0.85; } 100% { transform: scale(1.05); opacity: 0.7; } }
+        @keyframes evoOldKf { 0% { opacity: 1; } 32% { opacity: 1; } 35% { opacity: 0; } 39% { opacity: 1; } 43% { opacity: 0; } 46% { opacity: 1; } 49% { opacity: 0; } 51.5% { opacity: 1; } 54% { opacity: 0; } 56% { opacity: 1; } 58% { opacity: 0; } 100% { opacity: 0; } }
+        @keyframes evoNewKf { 0%, 33% { opacity: 0; } 35% { opacity: 1; } 39% { opacity: 0; } 43% { opacity: 1; } 46% { opacity: 0; } 49% { opacity: 1; } 51.5% { opacity: 0; } 54% { opacity: 1; } 56% { opacity: 0; } 58%, 100% { opacity: 1; } }
+        @keyframes evoNewPopKf { 0%, 58% { transform: scale(1); } 62% { transform: scale(1.3); } 72% { transform: scale(0.96); } 80%, 100% { transform: scale(1); } }
+        @keyframes evoFlashKf { 0%, 57% { opacity: 0; } 61% { opacity: 1; } 73%, 100% { opacity: 0; } }
+        @keyframes evoRevealKf { 0%, 64% { opacity: 0; transform: translateY(8px); } 76%, 100% { opacity: 1; transform: translateY(0); } }
+        @keyframes evoLabelKf { 0% { opacity: 0; } 8%, 100% { opacity: 1; } }
+        @keyframes evoSparkKf { 0%, 63% { opacity: 0; transform: scale(0) rotate(0deg); } 72% { opacity: 1; transform: scale(1.3) rotate(45deg); } 86% { opacity: 0.8; transform: scale(0.8) rotate(90deg); } 100% { opacity: 0; transform: scale(0.4) rotate(120deg); } }
+        .evo-root { animation: evoRootKf 3.6s linear both; }
+        .evo-rays { animation: evoRaysKf 3.6s linear both; }
+        .evo-orb { animation: evoOrbKf 3.6s ease-in-out both; }
+        .evo-old { animation: evoOldKf 3.6s step-end both; }
+        .evo-new { animation: evoNewKf 3.6s step-end both; }
+        .evo-new-pop { animation: evoNewPopKf 3.6s ease-out both; }
+        .evo-flash { animation: evoFlashKf 3.6s ease-out both; }
+        .evo-reveal { animation: evoRevealKf 3.6s ease-out both; }
+        .evo-label { animation: evoLabelKf 3.6s ease-out both; }
+        .evo-spark { animation: evoSparkKf 3.6s ease-out both; }
         @media (prefers-reduced-motion: reduce) {
+          .evo-root, .evo-rays, .evo-orb, .evo-old, .evo-new, .evo-new-pop, .evo-flash, .evo-reveal, .evo-label, .evo-spark { animation: none; }
           .screen, .finish-flash, .finish-pop, .loading-pulse, .badge-pop, .arena-layer, .vs-slide-r, .vs-slide-l, .vs-pop { animation: none; }
           .ace-sweep { animation: none; transform: skewY(-7deg); }
           .ace-fade { animation: none; }
