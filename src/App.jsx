@@ -1615,7 +1615,7 @@ async function fetchLeaderboard() {
 
 // ===================== UI PIECES =====================
 function StampBadge({ type, size = 30 }) {
-  const color = TYPE_COLORS[type] || '#888';
+  const color = glowColor(TYPE_COLORS[type] || '#888');
   return (
     <div style={{
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
@@ -1695,35 +1695,234 @@ function PokemonCard({ pokemon, onClick, interactive = true, selected = false })
 // some of its padding/font size and collapsing the 4-cell stat grid into one compact line. Grid cells
 // use gridAutoRows: '1fr' (set where this is rendered) so the card stretches to fill whatever space
 // is actually available rather than assuming a fixed pixel height.
-function CompactPokemonCard({ pokemon, selected, onClick }) {
+// ===================== DRAFT SCREEN PIECES =====================
+// Stat bars share one fixed scale so cards compare at a glance (a few outliers, like Shuckle's
+// Defense, simply fill the bar). The number always sits on top of its bar.
+const STAT_BAR_MAX = 120;
+const STAT_KEYS = ['hp', 'atk', 'def', 'spd'];
+const STAT_LABELS = { hp: ['H', 'HP'], atk: ['A', 'ATK'], def: ['D', 'DEF'], spd: ['S', 'SPD'] };
+
+function StatBar({ label, value, color, height = 10, fontSize = 8.5, labelWidth = 7 }) {
+  const pct = Math.max(6, Math.min(100, (value / STAT_BAR_MAX) * 100));
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 3, minWidth: 0 }}>
+      <span style={{ width: labelWidth, flexShrink: 0, fontFamily: FONT_MONO, fontSize: fontSize - 1, color: COLORS.ash }}>{label}</span>
+      <div style={{ position: 'relative', flex: 1, minWidth: 0, height, borderRadius: 2, overflow: 'hidden', background: 'rgba(237,230,214,0.08)' }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${pct}%`, background: `linear-gradient(90deg, ${hexA(color, 0.3)}, ${hexA(color, 0.7)})`, boxShadow: `inset -2px 0 0 ${color}` }} />
+        <span style={{ position: 'relative', display: 'block', paddingLeft: 3, fontFamily: FONT_MONO, fontSize, fontWeight: 600, lineHeight: `${height}px`, color: COLORS.paper, textShadow: '0 1px 1px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.6)' }}>{value}</span>
+      </div>
+    </div>
+  );
+}
+
+function typeColorPair(p) {
+  const c1 = glowColor(TYPE_COLORS[p.types[0]] || COLORS.ash);
+  return [c1, p.types[1] ? glowColor(TYPE_COLORS[p.types[1]] || COLORS.ash) : c1];
+}
+
+// A pool card: washed in its type color(s), with a split edge for dual types. The layout steps down
+// as cards get shorter (a full pool on a small phone): stacked bars, then bars in pairs, then the
+// type names shrink to colored dots beside the name. The steps are CSS container queries (.pool-card in the
+// App's style block), so they follow the card's real size.
+function TypePill({ type }) {
+  const c = glowColor(TYPE_COLORS[type] || COLORS.ash);
+  return (
+    <span style={{ display: 'inline-block', height: 12, lineHeight: '10px', boxSizing: 'border-box', padding: '0 4px', borderRadius: 6, border: `1px solid ${hexA(c, 0.8)}`, color: c, fontFamily: FONT_MONO, fontWeight: 600, fontSize: 7.5, letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+      {type.toUpperCase()}
+    </span>
+  );
+}
+
+function PoolCard({ pokemon, selected, dimmed, accent, onClick }) {
+  const [c1, c2] = typeColorPair(pokemon);
   return (
     <div
       onClick={onClick}
       role="button"
       tabIndex={0}
+      aria-pressed={selected}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
+      className="pool-card"
       style={{
-        background: selected ? '#33413C' : COLORS.panel,
-        border: `${selected ? 2 : 1}px solid ${selected ? COLORS.jadeBright : COLORS.hairline}`,
-        borderRadius: 4, padding: 6, cursor: 'pointer', boxSizing: 'border-box', overflow: 'hidden',
-        display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 3,
+        position: 'relative', overflow: 'hidden', minHeight: 0, boxSizing: 'border-box', cursor: 'pointer',
+        borderRadius: 5, padding: '5px 6px 5px 9px',
+        display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2,
+        backgroundColor: COLORS.panel,
+        backgroundImage: `linear-gradient(155deg, ${hexA(c1, 0.3)}, ${hexA(c2, 0.1)} 55%, transparent 92%)`,
+        border: `1px solid ${selected ? accent : COLORS.hairline}`,
+        boxShadow: selected ? `inset 0 0 0 1px ${accent}` : 'none',
+        opacity: dimmed ? 0.5 : 1, transition: 'opacity 0.15s ease, border-color 0.15s ease',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 3 }}>
-        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 12, color: COLORS.paper, lineHeight: 1.1 }}>
+      <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: `linear-gradient(${c1} 50%, ${c2} 50%)` }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 13, color: COLORS.paper, lineHeight: 1 }}>
           {pokemon.name}
         </div>
+        <div className="pool-types-inline" aria-hidden="true" style={{ gap: 2 }}>
+          {[c1, c2].slice(0, pokemon.types.length).map((c, i) => <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: c }} />)}
+        </div>
         {selected ? (
-          <span style={{ fontSize: 10, color: COLORS.jadeBright, flexShrink: 0 }}>&#10003;</span>
+          <span style={{ fontSize: 10, color: accent, flexShrink: 0 }}>&#10003;</span>
         ) : pokemon.evolvesTo && (
-          <span style={{ fontSize: 10, color: COLORS.jadeBright, flexShrink: 0 }}>&#10022;</span>
+          <span title="Can evolve mid-battle" style={{ fontSize: 10, color: COLORS.jadeBright, flexShrink: 0 }}>&#10022;</span>
         )}
       </div>
-      <div style={{ display: 'flex', gap: 3 }}>
-        {pokemon.types.map(t => <StampBadge key={t} type={t} size={18} />)}
+      <div className="pool-types" style={{ gap: 3, overflow: 'hidden' }}>{pokemon.types.map(t => <TypePill key={t} type={t} />)}</div>
+      <div className="pool-stats">
+        {STAT_KEYS.map(k => <StatBar key={k} label={STAT_LABELS[k][0]} value={pokemon.stats[k]} color={c1} />)}
       </div>
-      <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.ash, overflow: 'hidden', whiteSpace: 'nowrap' }}>
-        H{pokemon.stats.hp} A{pokemon.stats.atk} D{pokemon.stats.def} S{pokemon.stats.spd}
+    </div>
+  );
+}
+
+// A team's slots: filled ones wear the Pokémon's type colors, empty ones are dashed, and the slot the
+// current pick will land in glows in the picker's color. The strip underneath is the team's type mix.
+function TeamTray({ roster, slots, accent, nextSlot }) {
+  const mix = [];
+  for (const p of roster) for (const t of p.types) {
+    const share = 1 / Math.max(slots, 1) / p.types.length;
+    const found = mix.find(m => m.type === t);
+    if (found) found.share += share; else mix.push({ type: t, share });
+  }
+  mix.sort((a, b) => b.share - a.share);
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 3 }}>
+        {Array.from({ length: slots }, (_, i) => {
+          const p = roster[i];
+          if (!p) {
+            const next = i === nextSlot;
+            return <div key={`empty-${i}`} data-slot={next ? 'next' : 'empty'} className={next ? 'loading-pulse' : undefined} style={{ height: 20, borderRadius: 3, boxSizing: 'border-box', border: `1px dashed ${next ? accent : COLORS.hairline}` }} />;
+          }
+          const [c1, c2] = typeColorPair(p);
+          return (
+            <div key={p.name} title={p.name} data-slot="filled" style={{ position: 'relative', height: 20, borderRadius: 3, overflow: 'hidden', boxSizing: 'border-box', display: 'flex', alignItems: 'center', padding: '0 3px 0 6px', background: `linear-gradient(90deg, ${hexA(c1, 0.4)}, ${hexA(c2, 0.2)})` }}>
+              <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: `linear-gradient(${c1} 50%, ${c2} 50%)` }} />
+              <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 11, color: COLORS.paper }}>
+                {p.aceOf ? '★ ' : ''}{p.name}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div aria-hidden="true" style={{ display: 'flex', height: 4, marginTop: 4, borderRadius: 2, overflow: 'hidden', background: COLORS.hairline }}>
+        {mix.map(m => <span key={m.type} style={{ width: `${m.share * 100}%`, background: glowColor(TYPE_COLORS[m.type] || COLORS.ash), boxShadow: `inset -1px 0 0 ${COLORS.ink}` }} />)}
+      </div>
+    </div>
+  );
+}
+
+// Draft colors: red and blue for two players. Against the computer the opponent wears their own color
+// and the challenger stays red, unless the opponent's color is itself close to red (Sabrina, Blaine,
+// Bruno), in which case the challenger turns blue.
+const TRAINER_RED = '#E2584A';
+const TRAINER_BLUE = '#4C93C7';
+function hueSat(hex) {
+  const h = (hex || '#888888').replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map(x => x + x).join('') : h, 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => v / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  if (d === 0) return { hue: 0, sat: 0 };
+  const hue = max === r ? 60 * (((g - b) / d) % 6) : max === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+  return { hue: (hue + 360) % 360, sat: d / (1 - Math.abs(max + min - 1)) };
+}
+function draftColors(leader) {
+  if (!leader) return [TRAINER_RED, TRAINER_BLUE];
+  const theirs = glowColor(opponentColor(leader));
+  const { hue, sat } = hueSat(theirs);
+  const red = hueSat(TRAINER_RED).hue;
+  const nearRed = sat > 0.25 && Math.min(Math.abs(hue - red), 360 - Math.abs(hue - red)) < 30;
+  return [nearRed ? TRAINER_BLUE : TRAINER_RED, theirs];
+}
+
+function evolutionStages(p) {
+  const stages = [];
+  let e = p.evolvesTo;
+  while (e) {
+    if (e.branch) { stages.push({ branch: e.branch.length }); break; }
+    stages.push({ name: e.name });
+    e = e.evolvesTo;
+  }
+  return stages;
+}
+// "Hits hard" = has a damaging move in its kit that's super effective against the other Pokémon.
+function hitsHard(p, q) {
+  return [...p.moves.attack, ...p.moves.counter, ...p.moves.dodge]
+    .some(m => MOVES[m] && MOVES[m].power > 0 && getEffectiveness(MOVES[m].type, q.types) >= 2);
+}
+function possessive(name) { return /s$/i.test(name) ? `${name}'` : `${name}'s`; }
+
+function MoveChip({ move, isNew }) {
+  const data = MOVES[move] || { type: 'Normal', power: 0 };
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', borderRadius: 11, padding: '2px 8px 2px 5px', border: `1px solid ${isNew ? COLORS.jadeBright : COLORS.hairline}`, fontFamily: FONT_BODY, fontSize: 11, color: COLORS.paper }}>
+      <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: glowColor(TYPE_COLORS[data.type] || COLORS.ash) }} />
+      {isNew ? `★ ${move}` : move}
+      {data.power > 0 && <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.ash }}>{data.power}</span>}
+    </span>
+  );
+}
+
+// Tapping a pool card opens its scouting report in place of a plain confirm bar.
+function ScoutingSheet({ pokemon, accent, pickerName, opponentName, opponentRoster, onCancel, onDraft }) {
+  const [c1] = typeColorPair(pokemon);
+  const stages = evolutionStages(pokemon);
+  const strong = opponentRoster.filter(q => hitsHard(pokemon, q)).map(q => q.name);
+  const threats = opponentRoster.filter(q => hitsHard(q, pokemon)).map(q => q.name);
+  const label = { fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.12em', color: COLORS.ash };
+  const line = { fontFamily: FONT_BODY, fontSize: 12, color: COLORS.paper, lineHeight: 1.5 };
+  const tag = { fontFamily: FONT_MONO, fontSize: 9.5, fontWeight: 600, letterSpacing: '0.06em', marginRight: 6 };
+  const roles = [['ATTACK', pokemon.moves.attack], ['COUNTER', pokemon.moves.counter], ['DODGE', pokemon.moves.dodge], ['NEW MOVE', pokemon.finishing]]
+    .filter(([, moves]) => moves && moves.length);
+  return (
+    <div role="region" aria-label={`Scouting report: ${pokemon.name}`} className="sheet-rise" style={{
+      position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 10, maxHeight: '84%', overflowY: 'auto', boxSizing: 'border-box',
+      background: '#191613', borderTop: `2px solid ${accent}`, boxShadow: '0 -10px 30px rgba(0,0,0,0.55)',
+      padding: '12px 16px', paddingBottom: 'max(14px, env(safe-area-inset-bottom))',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={label}>SCOUTING REPORT · {pickerName.toUpperCase()}'S PICK</div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: 30, lineHeight: 1, color: COLORS.paper, marginTop: 4, overflowWrap: 'anywhere' }}>{pokemon.name.toUpperCase()}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 5, flexShrink: 0, marginTop: 4 }}>{pokemon.types.map(t => <StampBadge key={t} type={t} size={30} />)}</div>
+      </div>
+      {stages.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 6px', marginTop: 6, fontFamily: FONT_MONO, fontSize: 10, color: COLORS.jadeBright }}>
+          <span>&#10022; EVOLVES MID-BATTLE</span>
+          {stages.map((s, i) => <span key={i}>&#9656; {s.branch ? `1 OF ${s.branch} FORMS` : s.name.toUpperCase()}</span>)}
+        </div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '5px 12px', marginTop: 10 }}>
+        {STAT_KEYS.map(k => <StatBar key={k} label={STAT_LABELS[k][1]} value={pokemon.stats[k]} color={c1} height={15} fontSize={11} labelWidth={22} />)}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', gap: '5px 10px', alignItems: 'center', marginTop: 12 }}>
+        {roles.map(([role, moves]) => (
+          <React.Fragment key={role}>
+            <span style={label}>{role}</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{moves.map(m => <MoveChip key={m} move={m} isNew={role === 'NEW MOVE'} />)}</div>
+          </React.Fragment>
+        ))}
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <div style={{ ...label, marginBottom: 3 }}>VS {possessive(opponentName).toUpperCase()} TEAM</div>
+        {opponentRoster.length === 0 ? (
+          <div style={{ ...line, color: COLORS.ash }}>{opponentName} hasn't picked yet.</div>
+        ) : (
+          <>
+            <div style={line}><span style={{ ...tag, color: COLORS.jadeBright }}>&#9650; HITS HARD</span>{strong.length ? strong.join(', ') : <span style={{ color: COLORS.ash }}>none</span>}</div>
+            <div style={line}><span style={{ ...tag, color: '#E3705F' }}>&#9660; WATCH OUT</span>{threats.length ? threats.join(', ') : <span style={{ color: COLORS.ash }}>none</span>}</div>
+          </>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <button onClick={onCancel} style={{ flex: 1, background: 'none', border: `1px solid ${COLORS.hairline}`, color: COLORS.ash, borderRadius: 4, padding: '12px', fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+          CANCEL
+        </button>
+        <button onClick={onDraft} style={{ flex: 2, background: accent, border: 'none', color: readableOn(accent), borderRadius: 4, padding: '12px', fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 14, letterSpacing: '0.03em', cursor: 'pointer', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          DRAFT {pokemon.name.toUpperCase()}
+        </button>
       </div>
     </div>
   );
@@ -2834,10 +3033,14 @@ function GymHubScreen({ challenger, onChallenge, onBack }) {
   );
 }
 
-function DraftScreen({ trainers, pool, rosters, pickOrder, pickIndex, onPick, onReset, cpuSide = null, backLabel = 'NEW DRAFT' }) {
+function DraftScreen({ trainers, pool, rosters, pickOrder, pickIndex, onPick, onReset, cpuSide = null, backLabel = 'NEW DRAFT', leader = null }) {
   const [selected, setSelected] = useState(null);
   const currentIdx = pickOrder[pickIndex];
   const cpuTurn = cpuSide !== null && currentIdx === cpuSide;
+  const colors = draftColors(leader);
+  const accent = colors[currentIdx];
+  const showSheet = !!selected && !cpuTurn;
+  const slotsFor = i => rosters[i].length + pickOrder.slice(pickIndex).filter(s => s === i).length;
 
   const confirmPick = () => {
     if (!selected) return;
@@ -2847,80 +3050,75 @@ function DraftScreen({ trainers, pool, rosters, pickOrder, pickIndex, onPick, on
 
   return (
     <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', maxWidth: 720, margin: '0 auto', overflow: 'hidden', position: 'relative' }}>
-      <div style={{ flexShrink: 0, background: COLORS.ink, padding: '14px 16px 10px', borderBottom: `1px solid ${COLORS.hairline}` }}>
-        <button onClick={onReset} style={{ background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0, marginBottom: 6 }}>
+      <div style={{ flexShrink: 0, background: COLORS.ink, padding: '12px 16px 9px', borderBottom: `1px solid ${COLORS.hairline}` }}>
+        <button onClick={onReset} style={{ background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0, marginBottom: 4 }}>
           &larr; {backLabel}
         </button>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           {trainers.map((t, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: currentIdx === i ? 1 : 0.4 }}>
-              {currentIdx === i && <span style={{ width: 9, height: 9, borderRadius: '50%', background: COLORS.jadeBright, display: 'inline-block' }} />}
-              <div style={{ textAlign: i === 1 ? 'right' : 'left' }}>
-                <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 24, color: COLORS.paper, lineHeight: 1.1 }}>{t.name}</div>
+            <div key={i} style={{ display: 'flex', flexDirection: i === 1 ? 'row-reverse' : 'row', alignItems: 'center', gap: 7, minWidth: 0, opacity: currentIdx === i ? 1 : 0.45, transition: 'opacity 0.2s ease' }}>
+              {currentIdx === i && <span style={{ width: 9, height: 9, borderRadius: '50%', background: colors[i], display: 'inline-block', flexShrink: 0 }} />}
+              <div style={{ textAlign: i === 1 ? 'right' : 'left', minWidth: 0 }}>
+                <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 24, color: colors[i], lineHeight: 1.1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
                 <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.ash }}>{t.style.name.toUpperCase()}</div>
               </div>
             </div>
           ))}
         </div>
-        <div style={{ textAlign: 'center', fontFamily: FONT_MONO, fontSize: 11, color: COLORS.jadeBright, letterSpacing: '0.15em', marginTop: 6 }}>
+        <div aria-hidden="true" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 5, height: 12, marginTop: 6 }}>
+          {pickOrder.map((side, i) => {
+            const c = colors[side];
+            const done = i < pickIndex, now = i === pickIndex;
+            return (
+              <span key={i} data-pip={done ? 'done' : now ? 'now' : 'next'} style={{
+                flex: '0 1 20px', minWidth: 8, height: now ? 8 : 5, borderRadius: 3, boxSizing: 'border-box',
+                background: done || now ? c : 'transparent', border: done || now ? 'none' : `1.5px solid ${hexA(c, 0.65)}`,
+                opacity: done ? 0.7 : 1, boxShadow: now ? `0 0 0 2px ${COLORS.ink}, 0 0 0 3px ${c}` : 'none',
+              }} />
+            );
+          })}
+        </div>
+        <div style={{ textAlign: 'center', fontFamily: FONT_MONO, fontSize: 11, color: accent, letterSpacing: '0.15em', marginTop: 5 }}>
           {cpuTurn
             ? <span className="loading-pulse">{trainers[currentIdx].name.toUpperCase()} IS CHOOSING…</span>
             : <>PICK {pickIndex + 1} / {pickOrder.length} — {trainers[currentIdx].name.toUpperCase()}'S TURN</>}
         </div>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '10px 16px 0' }}>
-        <div style={{ flexShrink: 0, display: 'flex', gap: 12, minHeight: 22, marginBottom: 10 }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '10px 16px 0', paddingBottom: 'max(10px, env(safe-area-inset-bottom))' }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 9 }}>
           {rosters.map((roster, i) => (
-            <div key={i} style={{ flex: 1, display: 'flex', gap: 5, flexWrap: 'wrap', justifyContent: i === 1 ? 'flex-end' : 'flex-start' }}>
-              {roster.map(p => (
-                <div key={p.name} style={{ fontSize: 9, fontFamily: FONT_MONO, color: (p.aceOf || p.signatureOf) ? COLORS.paper : COLORS.ash, border: `1px solid ${(p.aceOf || p.signatureOf) ? opponentColor(getLeader(p.aceOf || p.signatureOf)) : COLORS.hairline}`, borderRadius: 20, padding: '2px 7px' }}>
-                  {p.aceOf ? '★ ' : ''}{p.name}
-                </div>
-              ))}
-            </div>
+            <TeamTray key={i} roster={roster} slots={slotsFor(i)} accent={colors[i]} nextSlot={currentIdx === i ? roster.length : -1} />
           ))}
         </div>
 
-        <div style={{ flexShrink: 0, fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash, letterSpacing: '0.1em', marginBottom: 8, borderBottom: `1px solid ${COLORS.hairline}`, paddingBottom: 6 }}>
+        <div style={{ flexShrink: 0, fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash, letterSpacing: '0.1em', marginBottom: 7, borderBottom: `1px solid ${COLORS.hairline}`, paddingBottom: 5 }}>
           THE POOL — {pool.length} LEFT
         </div>
-        <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridAutoRows: '1fr', gap: 8, overflow: 'hidden' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gridAutoRows: 'minmax(0, 1fr)', gap: 6, overflow: 'hidden' }}>
           {pool.map(p => (
-            <CompactPokemonCard
+            <PoolCard
               key={p.name}
               pokemon={p}
+              accent={accent}
               selected={selected?.name === p.name}
+              dimmed={showSheet && selected.name !== p.name}
               onClick={() => { if (!cpuTurn) setSelected(prev => (prev?.name === p.name ? null : p)); }}
             />
           ))}
         </div>
       </div>
 
-      {selected && !cpuTurn && (
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 10, background: COLORS.ink,
-          borderTop: `2px solid ${COLORS.jadeBright}`, padding: 16, display: 'flex', flexDirection: 'column', gap: 10,
-          boxShadow: '0 -8px 24px rgba(0,0,0,0.4)',
-        }}>
-          <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 16, color: COLORS.paper, textAlign: 'center' }}>
-            Draft {selected.name} for {trainers[currentIdx].name}?
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => setSelected(null)}
-              style={{ flex: 1, background: 'none', border: `1px solid ${COLORS.hairline}`, color: COLORS.ash, borderRadius: 4, padding: '12px', fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
-            >
-              CANCEL
-            </button>
-            <button
-              onClick={confirmPick}
-              style={{ flex: 2, background: COLORS.jade, border: 'none', color: COLORS.paper, borderRadius: 4, padding: '12px', fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14, letterSpacing: '0.03em', cursor: 'pointer' }}
-            >
-              CONFIRM PICK
-            </button>
-          </div>
-        </div>
+      {showSheet && (
+        <ScoutingSheet
+          pokemon={selected}
+          accent={accent}
+          pickerName={trainers[currentIdx].name}
+          opponentName={trainers[1 - currentIdx].name}
+          opponentRoster={rosters[1 - currentIdx]}
+          onCancel={() => setSelected(null)}
+          onDraft={confirmPick}
+        />
       )}
     </div>
   );
@@ -3614,6 +3812,14 @@ export default function App() {
         .badge-pop { animation: badgePopKf 0.6s cubic-bezier(.2,.9,.3,1.2); }
         @keyframes loadingPulseKf { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
         .loading-pulse { animation: loadingPulseKf 1.3s ease-in-out infinite; }
+        .pool-card { container-type: size; }
+        .pool-types { display: flex; }
+        .pool-types-inline { display: none; flex-shrink: 0; }
+        .pool-stats { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; }
+        @container (max-height: 74.9px) { .pool-stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 5px; } }
+        @container (max-height: 50.9px) { .pool-types { display: none; } .pool-types-inline { display: flex; } }
+        @keyframes sheetRiseKf { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .sheet-rise { animation: sheetRiseKf 0.18s ease-out; }
         @keyframes arenaWaves { to { background-position: 120px 0; } }
         @keyframes arenaRise { to { background-position: 0 -120px; } }
         @keyframes arenaFall { to { background-position: 0 120px; } }
@@ -3655,7 +3861,7 @@ export default function App() {
         .evo-spark { animation: evoSparkKf 3.6s ease-out both; }
         @media (prefers-reduced-motion: reduce) {
           .evo-root, .evo-rays, .evo-orb, .evo-old, .evo-new, .evo-new-pop, .evo-flash, .evo-reveal, .evo-label, .evo-spark { animation: none; }
-          .screen, .finish-flash, .finish-pop, .loading-pulse, .badge-pop, .arena-layer, .vs-slide-r, .vs-slide-l, .vs-pop { animation: none; }
+          .screen, .finish-flash, .finish-pop, .loading-pulse, .sheet-rise, .badge-pop, .arena-layer, .vs-slide-r, .vs-slide-l, .vs-pop { animation: none; }
           .ace-sweep { animation: none; transform: skewY(-7deg); }
           .ace-fade { animation: none; }
         }
@@ -3667,7 +3873,7 @@ export default function App() {
         {phase === 'gym-hub' && challenger && <GymHubScreen challenger={challenger} onChallenge={startGymChallenge} onBack={reset} />}
         {phase === 'drafting' && (
           <DraftScreen trainers={trainers} pool={pool} rosters={rosters} pickOrder={pickOrder} pickIndex={pickIndex} onPick={draftPick}
-            onReset={gym ? backToGyms : reset} cpuSide={gym ? 1 : null} backLabel={gym ? 'GYMS' : 'NEW DRAFT'} />
+            onReset={gym ? backToGyms : reset} cpuSide={gym ? 1 : null} backLabel={gym ? 'GYMS' : 'NEW DRAFT'} leader={leader} />
         )}
         {phase === 'review' && (
           <ReviewScreen trainers={trainers} rosters={rosters} onBattle={beginBattle} onReset={gym ? backToGyms : reset} gym={leader} backLabel={gym ? 'GYMS' : 'NEW DRAFT'} />
