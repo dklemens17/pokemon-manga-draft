@@ -2904,11 +2904,13 @@ function ReviewScreen({ trainers, rosters, onBattle, onReset, gym = null, backLa
       <div style={{ width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', gap: 10, marginTop: 32 }}>
         <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash, letterSpacing: '0.1em' }}>BEFORE YOU BEGIN</div>
         <ToggleOption label="Narrate aloud" desc="Read the story with text-to-speech" checked={audioEnabled} onChange={setAudioEnabled} />
-        <ToggleOption label="Quick Battle" desc="Auto-resolve routine moves; you'll still decide the key moments" checked={quickBattle} onChange={setQuickBattle} />
+        {!gym && (
+          <ToggleOption label="Quick Battle" desc="Auto-resolve routine moves; you'll still decide the key moments" checked={quickBattle} onChange={setQuickBattle} />
+        )}
       </div>
 
       <button
-        onClick={() => onBattle(audioEnabled, quickBattle)}
+        onClick={() => onBattle(audioEnabled, gym ? false : quickBattle)}
         style={{
           marginTop: 24, background: COLORS.jade, color: COLORS.paper, border: 'none', borderRadius: 4,
           padding: '14px 32px', fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 18, letterSpacing: '0.05em',
@@ -3548,7 +3550,7 @@ export default function App() {
           <ReviewScreen trainers={trainers} rosters={rosters} onBattle={beginBattle} onReset={gym ? backToGyms : reset} gym={leader} backLabel={gym ? 'GYMS' : 'NEW DRAFT'} />
         )}
         {phase === 'battle' && (
-          <BattleScreen trainers={trainers} rosters={rosters} audioEnabled={battleOptions.audio} quickBattle={battleOptions.quick}
+          <BattleScreen trainers={trainers} rosters={rosters} audioEnabled={battleOptions.audio} quickBattle={battleOptions.quick && !gym}
             onBack={() => setPhase('review')} onPlayAgain={gym ? backToGyms : reset} onHome={reset}
             gym={gym ? { leader, challengerIsGuest: trainers[0].isGuest } : null} onGymResult={noteProgress} />
         )}
