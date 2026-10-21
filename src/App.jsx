@@ -1764,13 +1764,13 @@ function BattlerPanel({ battler, align, aceIndices = [] }) {
   const isAce = aceIndices.includes(battler.activeIndex);
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 4, justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
-        {battler.types.map(t => <StampBadge key={t} type={t} size={20} />)}
+      <div style={{ display: 'flex', gap: 5, marginBottom: 3, justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
+        {battler.types.map(t => <StampBadge key={t} type={t} size={18} />)}
       </div>
-      <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 17, color: COLORS.paper, textAlign: align }}>
+      <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 17, lineHeight: 1.1, color: COLORS.paper, textAlign: align, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {isAce && <span title="Ace" style={{ color: '#D9B54A' }}>★ </span>}{battler.name}{battler.hasEvolved && <span style={{ color: COLORS.jadeBright }}> &#10022;</span>}
       </div>
-      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash, margin: '4px 0', textAlign: align }}>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash, margin: '2px 0 4px', textAlign: align }}>
         {battler.currentHp}/{battler.maxHp} HP
       </div>
       <HPBar current={battler.currentHp} max={battler.maxHp} />
@@ -1782,13 +1782,13 @@ function BattlerPanel({ battler, align, aceIndices = [] }) {
 function SwitchPicker({ trainer, roster, onPick }) {
   return (
     <div>
-      <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: COLORS.jadeBright, letterSpacing: '0.1em', marginBottom: 10, textAlign: 'center' }}>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.jadeBright, letterSpacing: '0.1em', marginBottom: 6, textAlign: 'center' }}>
         {trainer.name.toUpperCase()}, SEND OUT YOUR NEXT POKÉMON
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {roster.map((m, i) => !m.fainted && (
           <button key={i} onClick={() => onPick(i)} style={{
-            background: COLORS.panel, border: `1px solid ${COLORS.hairline}`, borderRadius: 4, padding: '12px',
+            background: COLORS.panel, border: `1px solid ${COLORS.hairline}`, borderRadius: 4, padding: '10px 12px',
             color: COLORS.paper, fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 15, cursor: 'pointer', textAlign: 'left',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
@@ -1808,7 +1808,7 @@ function MoveButton({ move, onClick, finishing }) {
     <button onClick={onClick} style={{
       background: finishing ? COLORS.jade : COLORS.panel,
       border: `1px solid ${finishing ? COLORS.jadeBright : COLORS.hairline}`,
-      borderRadius: 4, padding: '12px 8px', color: COLORS.paper, fontFamily: FONT_BODY,
+      borderRadius: 4, padding: '10px 8px', color: COLORS.paper, fontFamily: FONT_BODY,
       fontWeight: 600, fontSize: 13, cursor: 'pointer', textAlign: 'left',
     }}>
       {finishing && <div style={{ fontFamily: FONT_MONO, fontSize: 8, letterSpacing: '0.1em', marginBottom: 3 }}>★ NEW MOVE</div>}
@@ -1826,7 +1826,7 @@ function DefenseButton({ role, move, onClick, chance }) {
   const chanceColor = showChance ? dodgeChanceColor(chance) : null;
   return (
     <button onClick={onClick} style={{
-      background: COLORS.panel, border: `1px solid ${COLORS.hairline}`, borderRadius: 4, padding: '12px 8px',
+      background: COLORS.panel, border: `1px solid ${COLORS.hairline}`, borderRadius: 4, padding: '9px 8px',
       color: COLORS.paper, fontFamily: FONT_BODY, fontWeight: 700, fontSize: 13, cursor: 'pointer', textAlign: 'left',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1840,10 +1840,10 @@ function DefenseButton({ role, move, onClick, chance }) {
           </div>
         )}
       </div>
-      <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 15, marginTop: 3 }}>{move}</div>
-      <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: TYPE_COLORS[data.type], marginTop: 3 }}>{data.type.toUpperCase()} · {data.power}</div>
+      <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 15, marginTop: 2 }}>{move}</div>
+      <div style={{ fontFamily: FONT_MONO, fontSize: 9, color: TYPE_COLORS[data.type], marginTop: 2 }}>{data.type.toUpperCase()} · {data.power}</div>
       {showChance && (
-        <div style={{ width: '100%', height: 4, background: COLORS.hairline, borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: 4, background: COLORS.hairline, borderRadius: 2, marginTop: 5, overflow: 'hidden' }}>
           <div style={{ width: `${Math.round(chance * 100)}%`, height: '100%', background: chanceColor }} />
         </div>
       )}
@@ -2340,7 +2340,7 @@ function TeamPips({ snapshot, align, aceIndices = [] }) {
     <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: COLORS.ash, letterSpacing: '0.04em' }}>{left}/{snapshot.team.length}</span>
   );
   return (
-    <div aria-label={`${left} of ${snapshot.team.length} Pokémon left`} style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 7, justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
+    <div aria-label={`${left} of ${snapshot.team.length} Pokémon left`} style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6, justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
       {align === 'right' && count}
       {snapshot.team.map((m, i) => {
         const active = i === snapshot.activeIndex && !m.fainted;
@@ -2375,7 +2375,7 @@ function AceChip({ label, color, active, disabled, onClick }) {
 
 function CpuThinking({ text }) {
   return (
-    <div className="loading-pulse" style={{ fontFamily: FONT_MONO, fontSize: 11, color: COLORS.ash, letterSpacing: '0.1em', textAlign: 'center', padding: '18px 0' }}>
+    <div className="loading-pulse" style={{ fontFamily: FONT_MONO, fontSize: 11, color: COLORS.ash, letterSpacing: '0.1em', textAlign: 'center', padding: '14px 0' }}>
       {text}
     </div>
   );
@@ -3002,6 +3002,7 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
   const aceIndices = [rosters[0].map((p, i) => (p.earnedAce ? i : -1)).filter(i => i >= 0), aceIndex1 >= 0 ? [aceIndex1] : []];
   const [battle, setBattle] = useState(() => initBattle(rosters[0], rosters[1], [trainers[0].name, trainers[1].name], gym ? gym.leader : null));
   const logEndRef = useRef(null);
+  const logBoxRef = useRef(null);
   const mountedRef = useRef(true);
   useEffect(() => {
     // Re-arm on every mount: React's development StrictMode mounts, unmounts and remounts once,
@@ -3014,7 +3015,9 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
   }, []);
 
   useEffect(() => {
-    if (logEndRef.current) logEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    const box = logBoxRef.current;
+    if (box && typeof box.scrollTo === 'function') box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+    else if (logEndRef.current && logEndRef.current.scrollIntoView) logEndRef.current.scrollIntoView({ block: 'end' });
   }, [battle.log.length]);
 
   // The ONE live AI call per battle: fetch a scene-setting intro for the opening beat only.
@@ -3214,18 +3217,25 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
     <>
     {gym && <ArenaBackdrop leader={gym.leader} />}
     {gym && aceBanner && <AceBanner leader={gym.leader} aceName={aceBanner} onDone={() => setAceBanner(null)} />}
-    <div style={{ minHeight: '100vh', padding: '20px 16px 32px', maxWidth: 560, margin: '0 auto', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
-      <button onClick={onBack} style={{ position: 'relative', alignSelf: 'flex-start', background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0, marginBottom: 16 }}>
+    {/* While battling, the screen is exactly one viewport tall (battle-fit = 100dvh): the header and
+        the controls stay put and only the story scrolls between them, so the move buttons are always
+        on screen. The result screen goes back to normal page scrolling for the epilogue and stats. */}
+    <div className={showWinner ? undefined : 'battle-fit'} style={{
+      ...(showWinner ? { minHeight: '100vh' } : { overflow: 'hidden' }),
+      padding: '10px 16px', paddingBottom: 'max(12px, env(safe-area-inset-bottom))', boxSizing: 'border-box',
+      maxWidth: 560, margin: '0 auto', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1,
+    }}>
+      <button onClick={onBack} style={{ position: 'relative', flexShrink: 0, alignSelf: 'flex-start', background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: '4px 0', marginBottom: 6 }}>
         &larr; TEAMS
       </button>
 
-      <div style={{ position: 'relative', display: 'flex', gap: 16, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${gym ? hexA(opponentColor(gym.leader), 0.5) : COLORS.hairline}` }}>
+      <div style={{ position: 'relative', flexShrink: 0, display: 'flex', gap: 12, marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${gym ? hexA(opponentColor(gym.leader), 0.5) : COLORS.hairline}` }}>
         <BattlerPanel battler={battle.log[battle.log.length - 1].snapshotAfter[0]} align="left" aceIndices={aceIndices[0]} />
         <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 900, fontSize: 20, color: COLORS.ash, alignSelf: 'center' }}>VS</div>
         <BattlerPanel battler={battle.log[battle.log.length - 1].snapshotAfter[1]} align="right" aceIndices={aceIndices[1]} />
       </div>
 
-      <div style={{ position: 'relative', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14, maxHeight: 360, paddingRight: 4 }}>
+      <div ref={logBoxRef} style={{ position: 'relative', ...(showWinner ? { maxHeight: '40vh' } : { flex: 1, minHeight: 0 }), overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 10, paddingRight: 4 }}>
         {battle.log.map((entry, i) => {
           const isLatest = i === battle.log.length - 1;
           if (entry.event.type === 'leader_line') {
@@ -3233,7 +3243,7 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
             return (
               <div key={entry.id} className={isLatest ? 'finish-pop' : undefined} style={{ borderLeft: `3px solid ${lc}`, paddingLeft: 10, opacity: isLatest ? 1 : 0.5 }}>
                 <div style={{ fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.14em', color: lc, marginBottom: 2 }}>{entry.event.speaker.toUpperCase()}</div>
-                <div style={{ fontFamily: FONT_BODY, fontStyle: 'italic', fontSize: isLatest ? 16 : 13, lineHeight: 1.5, color: COLORS.paper, fontWeight: isLatest ? 500 : 400 }}>“{entry.mechanicalText}”</div>
+                <div style={{ fontFamily: FONT_BODY, fontStyle: 'italic', fontSize: isLatest ? 15 : 13, lineHeight: 1.5, color: COLORS.paper, fontWeight: isLatest ? 500 : 400 }}>“{entry.mechanicalText}”</div>
               </div>
             );
           }
@@ -3266,7 +3276,7 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
                 <div
                   className={isLatest && justLearnedFinishing ? 'finish-pop' : undefined}
                   style={{
-                    fontFamily: FONT_BODY, fontSize: isLatest ? 16 : 13, lineHeight: 1.65,
+                    fontFamily: FONT_BODY, fontSize: isLatest ? 15 : 13, lineHeight: 1.55,
                     color: special ? COLORS.jadeBright : COLORS.paper,
                     opacity: isLatest ? 1 : 0.5,
                     fontWeight: isLatest ? 500 : 400,
@@ -3286,9 +3296,9 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
         <button
           onClick={handleContinue}
           style={{
-            background: COLORS.panel, border: `1px solid ${COLORS.jadeBright}`, color: COLORS.jadeBright,
-            borderRadius: 4, padding: '12px', fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 15,
-            letterSpacing: '0.05em', cursor: 'pointer', marginBottom: 4,
+            flexShrink: 0, background: COLORS.panel, border: `1px solid ${COLORS.jadeBright}`, color: COLORS.jadeBright,
+            borderRadius: 4, padding: '13px', fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 15,
+            letterSpacing: '0.05em', cursor: 'pointer',
           }}
         >
           CONTINUE &rarr;
@@ -3361,6 +3371,7 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
         );
       })()}
 
+      <div style={{ flexShrink: 0 }}>
       {showSwitch && (battle.needsSwitch[0] === cpuSide
         ? <CpuThinking text={`${trainers[cpuSide].name.toUpperCase()} IS CHOOSING THE NEXT POKÉMON…`} />
         : <SwitchPicker trainer={trainers[battle.needsSwitch[0]]} roster={battle.teams[battle.needsSwitch[0]]} onPick={handleSwitch} />
@@ -3372,10 +3383,10 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
 
       {showAttackChoice && attackerSide !== cpuSide && (
         <div>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: COLORS.jadeBright, letterSpacing: '0.1em', marginBottom: 10, textAlign: 'center' }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.jadeBright, letterSpacing: '0.1em', marginBottom: 6, textAlign: 'center' }}>
             {trainers[attackerSide].name.toUpperCase()}, CHOOSE YOUR ATTACK
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
             {attackerBattler.movesByRole.attack.map(m => (
               <MoveButton key={m} move={m} onClick={() => handleAttack(m)} />
             ))}
@@ -3388,16 +3399,16 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
 
       {showDefenseChoice && (
         <div>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: COLORS.hpLow, letterSpacing: '0.1em', marginBottom: 6, textAlign: 'center' }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.hpLow, letterSpacing: '0.1em', marginBottom: 4, textAlign: 'center' }}>
             {attackerBattler.name.toUpperCase()} IS ATTACKING WITH {battle.pendingAttackMove.toUpperCase()}!
           </div>
           {defenderSide === cpuSide ? (
             <CpuThinking text={`${trainers[cpuSide].name.toUpperCase()} IS READING YOUR ATTACK…`} />
           ) : (<>
-          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: COLORS.jadeBright, letterSpacing: '0.1em', marginBottom: 10, textAlign: 'center' }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.jadeBright, letterSpacing: '0.1em', marginBottom: 6, textAlign: 'center' }}>
             {trainers[defenderSide].name.toUpperCase()}, HOW DO YOU RESPOND?
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
             {defenderBattler.movesByRole.counter.map(m => (
               <DefenseButton key={m} role="COUNTER" move={m} onClick={() => handleDefense(m)} />
             ))}
@@ -3408,6 +3419,7 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
           </>)}
         </div>
       )}
+      </div>
     </div>
     </>
   );
@@ -3510,6 +3522,7 @@ export default function App() {
         button:focus-visible, input:focus-visible, div[role="button"]:focus-visible { outline: 2px solid ${COLORS.jadeBright}; outline-offset: 2px; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .screen { animation: fadeIn 0.35s ease; }
+        .battle-fit { height: 100vh; height: 100dvh; }
         @keyframes finishFlashKf { 0% { background: transparent; } 20% { background: rgba(79, 163, 147, 0.32); } 100% { background: transparent; } }
         .finish-flash { animation: finishFlashKf 0.9s ease-out; }
         @keyframes finishPopKf { 0% { transform: scale(0.92); opacity: 0.4; } 55% { transform: scale(1.03); } 100% { transform: scale(1); opacity: 1; } }
