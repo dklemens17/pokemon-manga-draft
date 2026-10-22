@@ -3403,36 +3403,38 @@ function GymResultPanel({ gym, result }) {
 // ===================== BATTLE MUSIC =====================
 // Original chiptune battle loops in the spirit of classic handheld battle themes, synthesized live
 // with Web Audio: a pulse-wave lead and harmony, a triangle bass and noise drums. No audio files.
-// All melodies here are original. Phones only allow sound after a tap, so the battle buttons call
+// All melodies here are original. Two-player battles, each of the eight gyms, and the League each
+// have their own theme. Phones only allow sound after a tap, so the battle buttons call
 // BattleMusic.unlock() inside their tap handler; everything is a silent no-op without Web Audio.
 
 const NOTE_INDEX = { C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11 };
 function noteMidi(n) {
   const m = /^([A-G][#b]?)(-?\d)$/.exec(n);
+  if (!m || !(m[1] in NOTE_INDEX)) throw new Error(`bad note ${n}`);
   return (Number(m[2]) + 1) * 12 + NOTE_INDEX[m[1]];
 }
 const midiFreq = m => 440 * Math.pow(2, (m - 69) / 12);
 
-const MUSIC_CHORDS = {
-  Em: ['E', 'G', 'B'], C: ['C', 'E', 'G'], D: ['D', 'F#', 'A'], B: ['B', 'D#', 'F#'], Am: ['A', 'C', 'E'], F: ['F', 'A', 'C'],
-  G: ['G', 'B', 'D'], E: ['E', 'G#', 'B'], Dm: ['D', 'F', 'A'], Bb: ['Bb', 'D', 'F'], Gm: ['G', 'Bb', 'D'], A: ['A', 'C#', 'E'],
-};
-// A chord's tones as rising MIDI notes, starting from its root in the given octave.
+// A chord is a root plus a quality: '' major, 'm' minor, 'dim', 'aug', or '5' for a power chord.
+const CHORD_SHAPES = { '': [0, 4, 7], m: [0, 3, 7], dim: [0, 3, 6], aug: [0, 4, 8], 5: [0, 7, 12] };
 function chordMidis(name, octave) {
-  const out = [];
-  for (const tone of MUSIC_CHORDS[name]) {
-    let m = noteMidi(tone + octave);
-    while (out.length && m <= out[out.length - 1]) m += 12;
-    out.push(m);
-  }
-  return out;
+  const m = /^([A-G][#b]?)(m|dim|aug|5)?$/.exec(name);
+  if (!m) throw new Error(`bad chord ${name}`);
+  const root = noteMidi(m[1] + octave);
+  return CHORD_SHAPES[m[2] || ''].map(i => root + i);
 }
 
-// Each song: 16 bars of sixteenth-note steps. Melody bars are "note:length" in sixteenths ('.' rests).
+// Each song is 16 bars. Melody bars are "note:length" in sixteenth-note steps ('.' rests); a bar is
+// 16 steps, or 12 in three-four time (spb). Optional style settings:
+//   lead:  tone of the melody -- duty (0.5 thick, 0.25 classic, 0.125 thin), gate (1 legato, lower
+//          staccato), vib (vibrato depth on held notes)
+//   bass:  drive | stomp | roll | pump | waltz | pulse | boss      (see MUSIC_BASS)
+//   harm:  mixed | arp | fastarp | slowarp | power | waltz | pad   (see MUSIC_HARM)
+//   drums: a MUSIC_DRUMS pattern; crash: a cymbal at the top of each half
 const MUSIC_SONGS = {
   // Two-player battles: "Rival Clash", E minor.
   rival: {
-    bpm: 168, drums: 'rock', arpBars: [8, 16],
+    title: 'Rival Clash', bpm: 168, drums: 'rock', arpBars: [8, 16],
     chords: ['Em', 'C', 'D', 'B', 'Em', 'C', 'Am', 'B', 'C', 'D', 'Em', 'Em', 'C', 'D', 'B', 'B'],
     melody: [
       'E5:3 B4:1 E5:2 G5:2 F#5:2 E5:2 D5:2 E5:2', 'G5:4 E5:2 C5:2 E5:2 G5:2 C6:4', 'A5:3 F#5:1 D5:2 F#5:2 A5:4 G5:2 F#5:2', 'D#5:4 F#5:2 B5:4 A5:2 G5:2 F#5:2',
@@ -3441,9 +3443,9 @@ const MUSIC_SONGS = {
       'G5:4 E5:4 C6:4 B5:2 A5:2', 'A5:4 F#5:4 D6:4 C6:2 A5:2', 'B5:4 A5:2 F#5:2 D#5:4 F#5:4', 'B5:8 A5:2 G5:2 F#5:2 D#5:2',
     ],
   },
-  // Gym Leader battles: "Gym Showdown", A minor.
+  // Fallback gym theme: "Gym Showdown", A minor.
   gym: {
-    bpm: 176, drums: 'drive', arpBars: [0, 16],
+    title: 'Gym Showdown', bpm: 176, drums: 'drive', arpBars: [0, 16],
     chords: ['Am', 'F', 'G', 'E', 'Am', 'F', 'Dm', 'E', 'F', 'G', 'Am', 'Am', 'F', 'G', 'E', 'E'],
     melody: [
       'A4:2 C5:2 E5:2 A5:4 G5:2 E5:2 C5:2', 'F5:3 E5:1 C5:2 A4:2 C5:4 F5:4', 'G5:2 B4:2 D5:2 G5:2 F5:2 D5:2 B4:2 D5:2', 'E5:4 G#5:4 B5:4 G#5:4',
@@ -3454,7 +3456,7 @@ const MUSIC_SONGS = {
   },
   // Elite Four, Champion and Professor Oak: "Indigo Finale", D minor.
   league: {
-    bpm: 184, drums: 'drive', arpBars: [0, 16],
+    title: 'Indigo Finale', bpm: 184, drums: 'drive', arpBars: [0, 16],
     chords: ['Dm', 'Bb', 'C', 'A', 'Dm', 'Bb', 'Gm', 'A', 'Gm', 'A', 'Dm', 'Dm', 'Bb', 'C', 'A', 'A'],
     melody: [
       'D5:2 F5:2 A5:2 D6:6 C6:2 A5:2', 'Bb5:4 A5:2 F5:2 D5:4 F5:4', 'E5:2 G5:2 C6:4 Bb5:2 A5:2 G5:4', 'A5:4 C#6:4 E6:4 C#6:2 A5:2',
@@ -3463,56 +3465,186 @@ const MUSIC_SONGS = {
       'D6:4 F6:4 Bb5:4 A5:2 F5:2', 'E6:4 G6:4 C6:4 D6:2 E6:2', 'F6:4 E6:2 D6:2 C#6:4 E6:4', 'A6:4 G6:2 E6:2 C#6:2 A5:2 B5:2 C#6:2',
     ],
   },
+
+  // ----- One theme per gym, styled after the leader's type -----
+  // Brock, Rock: "Boulder Brawl" -- heavy and stomping, power chords, a low thick lead.
+  brock: {
+    title: 'Boulder Brawl', bpm: 148, drums: 'stomp', crash: true, bass: 'stomp', harm: 'power', lead: { duty: 0.5, vib: 0.004 },
+    chords: ['E5', 'E5', 'G5', 'A5', 'E5', 'E5', 'C5', 'D5', 'C5', 'D5', 'E5', 'E5', 'C5', 'D5', 'B5', 'B5'],
+    melody: [
+      'E4:2 E4:1 E4:1 G4:2 E4:2 A4:2 G4:2 E4:2 D4:2', 'E4:2 E4:1 E4:1 G4:2 A4:2 B4:4 A4:2 G4:2', 'G4:3 A4:1 B4:2 D5:2 B4:2 A4:2 G4:4', 'A4:3 B4:1 C5:2 D5:2 E5:4 D5:2 B4:2',
+      'E5:4 D5:2 B4:2 E5:4 G5:4', 'F#5:2 E5:2 D5:2 B4:2 A4:4 B4:4', 'C5:2 E5:2 G5:2 E5:2 C5:2 E5:2 G5:4', 'F#5:4 E5:2 D5:2 A4:4 D5:4',
+      'E5:2 E5:2 .:2 E5:2 D5:2 C5:2 B4:4', 'D5:2 D5:2 .:2 D5:2 E5:2 F#5:2 A5:4', 'B5:6 A5:2 G5:4 E5:4', 'D5:2 E5:2 G5:2 A5:2 B5:8',
+      'G5:4 E5:2 C5:2 G5:4 E5:4', 'A5:4 F#5:2 D5:2 A5:4 F#5:4', 'B4:2 D#5:2 F#5:2 B5:2 A5:2 F#5:2 D#5:2 B4:2', 'B4:8 .:4 D#5:2 F#5:2',
+    ],
+  },
+  // Misty, Water: "Cerulean Current" -- flowing arpeggios, a thin airy lead, light drums, D major.
+  misty: {
+    title: 'Cerulean Current', bpm: 160, drums: 'light', bass: 'roll', harm: 'arp', lead: { duty: 0.125, vib: 0.011 },
+    chords: ['D', 'A', 'Bm', 'G', 'D', 'A', 'G', 'A', 'Bm', 'G', 'D', 'A', 'Bm', 'G', 'Em', 'A'],
+    melody: [
+      'F#5:3 E5:1 D5:2 A4:2 D5:2 F#5:2 A5:4', 'G5:2 F#5:2 E5:2 C#5:2 E5:4 A4:4', 'B4:2 D5:2 F#5:2 B5:4 A5:2 F#5:2 D5:2', 'E5:3 D5:1 B4:2 D5:2 G5:4 F#5:2 E5:2',
+      'F#5:3 E5:1 D5:2 A4:2 D5:2 F#5:2 A5:2 B5:2', 'C#6:4 B5:2 A5:2 E5:4 C#5:4', 'D5:2 G5:2 B5:2 D6:2 C#6:2 B5:2 A5:2 G5:2', 'A5:6 G5:2 F#5:2 E5:2 C#5:4',
+      'D6:4 C#6:2 B5:2 F#5:4 B5:4', 'B5:4 A5:2 G5:2 D5:4 G5:4', 'A5:2 F#5:2 A5:2 D6:2 C#6:2 A5:2 F#5:2 A5:2', 'E5:4 A5:4 C#6:4 E6:4',
+      'F#6:4 E6:2 D6:2 B5:4 D6:4', 'D6:2 B5:2 G5:2 B5:2 D6:4 G6:4', 'E6:2 D6:2 B5:2 G5:2 E5:2 G5:2 B5:4', 'C#6:4 E6:4 A5:4 C#6:2 E6:2',
+    ],
+  },
+  // Lt. Surge, Electric: "Thunder Drill" -- fast military march, staccato lead, buzzing arpeggios, C minor.
+  surge: {
+    title: 'Thunder Drill', bpm: 192, drums: 'march', crash: true, bass: 'drive', harm: 'fastarp', lead: { duty: 0.25, gate: 0.6, vib: 0 },
+    chords: ['Cm', 'Cm', 'Ab', 'Bb', 'Cm', 'Cm', 'Fm', 'G', 'Ab', 'Bb', 'Cm', 'Cm', 'Ab', 'Bb', 'G', 'G'],
+    melody: [
+      'C5:1 C5:1 .:1 C5:1 Eb5:2 G5:2 C6:2 .:2 G5:2 Eb5:2', 'D5:2 Eb5:2 F5:2 G5:2 Ab5:2 G5:2 F5:2 Eb5:2', 'C6:1 C6:1 .:1 C6:1 Ab5:2 Eb5:2 Ab5:4 C6:4', 'D6:2 Bb5:2 F5:2 Bb5:2 D6:4 F6:4',
+      'G5:1 G5:1 .:1 G5:1 C6:2 G5:2 Eb5:2 G5:2 C5:4', 'Eb5:2 D5:2 Eb5:2 F5:2 G5:4 .:4', 'F5:2 Ab5:2 C6:2 F6:2 Eb6:2 C6:2 Ab5:2 F5:2', 'G5:2 B5:2 D6:2 G6:2 F6:2 D6:2 B5:4',
+      'Eb6:2 .:1 Eb6:1 Eb6:2 C6:2 Ab5:4 C6:4', 'F6:2 .:1 F6:1 F6:2 D6:2 Bb5:4 D6:4', 'G6:4 F6:2 Eb6:2 D6:2 C6:2 Bb5:2 G5:2', 'C6:6 G5:2 Eb5:2 G5:2 C6:4',
+      'Ab5:2 C6:2 Eb6:2 Ab6:2 G6:2 Eb6:2 C6:4', 'Bb5:2 D6:2 F6:2 Bb6:2 Ab6:2 F6:2 D6:4', 'G6:4 F6:2 D6:2 B5:4 D6:4', 'G5:1 G5:1 G5:1 G5:1 B5:2 D6:2 G6:4 .:4',
+    ],
+  },
+  // Sabrina, Psychic: "Mind Games" -- slow and eerie, wide vibrato, augmented and borrowed chords, F# minor.
+  sabrina: {
+    title: 'Mind Games', bpm: 136, drums: 'halftime', bass: 'pulse', harm: 'slowarp', lead: { duty: 0.125, vib: 0.016 },
+    chords: ['F#m', 'D', 'Bm', 'C#', 'F#m', 'G', 'Bm', 'C#', 'D', 'C#', 'F#m', 'F#m', 'G', 'F#m', 'C#aug', 'C#'],
+    melody: [
+      'C#5:4 F#5:4 A5:6 G#5:2', 'F#5:4 D5:4 A4:6 D5:2', 'F#5:2 G5:2 F#5:2 D5:2 B4:8', 'C#5:2 F5:2 G#5:2 C#6:2 B5:4 G#5:4',
+      'A5:4 C#6:4 F#6:6 E6:2', 'D6:4 B5:4 G5:6 F#5:2', 'F#5:2 E5:2 D5:2 C#5:2 D5:2 E5:2 F#5:4', 'G#5:8 F5:4 C#5:4',
+      'A5:3 G#5:1 A5:2 D6:2 C#6:2 A5:2 F#5:4', 'G#5:3 F#5:1 G#5:2 C#6:2 B5:2 G#5:2 F5:4', 'F#5:2 G#5:2 A5:2 C6:2 C#6:4 A5:4', 'F#6:8 C#6:4 A5:4',
+      'G5:2 B5:2 D6:2 G6:2 F#6:4 D6:4', 'C#6:2 A5:2 F#5:2 A5:2 C#6:4 F#6:4', 'F6:4 C#6:4 A5:4 F5:4', 'C#5:2 D5:2 F5:2 G#5:2 C#6:8',
+    ],
+  },
+  // Erika, Grass: "Garden Waltz" -- three-four time, a soft flute-like lead, oom-pah-pah, A major.
+  erika: {
+    title: 'Garden Waltz', bpm: 168, spb: 12, drums: 'waltz', bass: 'waltz', harm: 'waltz', lead: { duty: 0.125, vib: 0.01 },
+    chords: ['A', 'E', 'F#m', 'D', 'A', 'E', 'D', 'E', 'F#m', 'C#m', 'D', 'A', 'D', 'E', 'A', 'E'],
+    melody: [
+      'E5:4 A5:2 B5:2 C#6:4', 'B5:4 G#5:2 E5:2 B5:4', 'A5:4 F#5:2 C#5:2 F#5:4', 'F#5:2 E5:2 D5:4 A4:4',
+      'C#5:2 E5:2 A5:4 C#6:4', 'B5:2 C#6:2 B5:2 G#5:2 E5:4', 'F#5:4 A5:2 D6:2 C#6:2 B5:2', 'B5:6 G#5:2 E5:4',
+      'A5:4 C#6:4 F#6:4', 'E6:4 C#6:2 G#5:2 E5:4', 'F#5:2 A5:2 D6:4 F#6:4', 'E6:4 C#6:4 A5:4',
+      'D6:2 C#6:2 B5:2 A5:2 F#5:4', 'E5:2 F#5:2 G#5:2 B5:2 E6:4', 'C#6:4 B5:2 A5:2 E5:4', 'G#5:4 B5:4 E6:4',
+    ],
+  },
+  // Koga, Poison: "Shadow Ninja" -- a Japanese in-scale melody (E F A B C), taiko drums, quick and sly.
+  koga: {
+    title: 'Shadow Ninja', bpm: 184, drums: 'taiko', bass: 'drive', harm: 'mixed', arpBars: [8, 16], lead: { duty: 0.25, gate: 0.8, vib: 0.009 },
+    chords: ['Em', 'F', 'Em', 'F', 'Am', 'Dm', 'F', 'Em', 'Am', 'F', 'Em', 'Em', 'Dm', 'F', 'Em', 'Em'],
+    melody: [
+      'E5:2 F5:2 A5:2 B5:2 C6:4 B5:2 A5:2', 'F5:2 A5:2 C6:4 B5:2 A5:2 F5:4', 'E5:1 E5:1 .:2 E6:2 C6:2 B5:4 A5:4', 'F5:2 E5:2 F5:2 A5:2 B5:8',
+      'A5:3 B5:1 C6:4 E6:4 C6:4', 'A5:2 F5:2 A5:2 C6:2 B5:4 A5:4', 'F5:2 A5:2 B5:2 C6:2 E6:2 C6:2 B5:4', 'E6:6 C6:2 B5:4 E5:4',
+      'A5:1 A5:1 .:1 A5:1 C6:2 E6:2 F6:4 E6:4', 'C6:1 C6:1 .:1 C6:1 F6:2 E6:2 C6:4 A5:4', 'B5:2 C6:2 B5:2 A5:2 F5:2 E5:2 F5:4', 'E5:8 .:4 B4:2 C5:2',
+      'F5:4 A5:4 C6:2 B5:2 A5:4', 'F6:4 E6:2 C6:2 A5:4 C6:4', 'B5:2 A5:2 F5:2 E5:2 F5:2 A5:2 B5:4', 'E6:2 C6:2 B5:2 A5:2 F5:2 E5:2 F5:2 B4:2',
+    ],
+  },
+  // Blaine, Fire: "Volcano Heat" -- fast, Phrygian-dominant runs, pumping sixteenth bass, four-on-the-floor.
+  blaine: {
+    title: 'Volcano Heat', bpm: 196, drums: 'fire', crash: true, bass: 'pump', harm: 'mixed', arpBars: [8, 16], lead: { duty: 0.25, vib: 0.006 },
+    chords: ['A', 'Bb', 'A', 'Bb', 'Gm', 'A', 'Bb', 'A', 'Dm', 'Gm', 'A', 'A', 'Dm', 'Bb', 'A', 'A'],
+    melody: [
+      'A5:2 Bb5:2 C#6:2 D6:2 E6:4 D6:2 C#6:2', 'D6:2 C#6:2 Bb5:2 A5:2 Bb5:4 F5:4', 'E5:1 F5:1 G5:1 A5:1 Bb5:2 A5:2 G5:2 F5:2 E5:4', 'F5:2 Bb5:2 D6:2 F6:2 E6:4 D6:4',
+      'D6:3 C#6:1 D6:2 Bb5:2 G5:4 Bb5:4', 'C#6:2 E6:2 A6:4 G6:2 F6:2 E6:4', 'F6:2 E6:2 D6:2 C#6:2 D6:2 Bb5:2 F5:4', 'A5:8 C#6:4 E6:4',
+      'F6:2 E6:2 D6:2 A5:2 D6:2 E6:2 F6:4', 'G6:2 F6:2 D6:2 Bb5:2 G5:4 D6:4', 'C#6:1 D6:1 E6:1 F6:1 G6:2 F6:2 E6:2 D6:2 C#6:4', 'A6:4 G6:2 F6:2 E6:4 C#6:4',
+      'D6:4 A5:2 F5:2 D5:4 F5:4', 'Bb5:4 F5:2 D5:2 Bb5:4 D6:4', 'E6:2 F6:2 E6:2 D6:2 C#6:2 Bb5:2 A5:4', 'A4:1 Bb4:1 C#5:1 D5:1 E5:1 F5:1 G5:1 A5:1 Bb5:2 C#6:2 E6:4',
+    ],
+  },
+  // Giovanni, Ground: "Viridian Boss" -- menacing and heavy, held pad chords, a creeping chromatic bass, C minor.
+  giovanni: {
+    title: 'Viridian Boss', bpm: 158, drums: 'heavy', crash: true, bass: 'boss', harm: 'pad', lead: { duty: 0.5, vib: 0.006 },
+    chords: ['Cm', 'Cm', 'Ab', 'G', 'Cm', 'Cm', 'Fm', 'G', 'Ab', 'Fm', 'Db', 'G', 'Ab', 'Bb', 'Bdim', 'G'],
+    melody: [
+      'C5:3 C5:1 .:2 Eb5:2 D5:2 C5:2 G4:4', 'Ab4:3 G4:1 .:2 C5:2 Eb5:4 D5:4', 'Eb5:3 Eb5:1 .:2 C5:2 Ab4:4 C5:4', 'B4:4 D5:4 G5:4 F5:2 D5:2',
+      'C6:3 C6:1 .:2 Bb5:2 G5:2 Eb5:2 C5:4', 'D5:2 Eb5:2 F5:2 G5:2 Ab5:4 G5:4', 'F5:2 Ab5:2 C6:2 F6:2 Eb6:2 C6:2 Ab5:4', 'B5:6 D6:2 G5:4 B4:4',
+      'Eb6:4 C6:2 Ab5:2 Eb5:4 Ab5:4', 'Ab5:4 F5:2 C5:2 F5:4 Ab5:4', 'Db6:4 Ab5:2 F5:2 Db5:4 F5:4', 'D6:4 B5:2 G5:2 F5:4 D5:4',
+      'C6:3 C6:1 .:2 Eb6:2 Db6:2 C6:2 Ab5:4', 'D6:3 D6:1 .:2 F6:2 Eb6:2 D6:2 Bb5:4', 'B5:2 D6:2 F6:2 Ab6:2 G6:4 F6:4', 'G6:4 F6:2 D6:2 B5:2 G5:2 D5:2 B4:2',
+    ],
+  },
 };
-// Short one-shot jingles for the result: [melody, chords-per-segment as [chord, steps]...]
+// Short one-shot jingles for the result: melody, then [chord, steps] segments under it.
 const MUSIC_JINGLES = {
   victory: { bpm: 150, melody: 'C5:1 E5:1 G5:1 C6:5 G5:2 A5:2 B5:2 C6:10', chords: [['C', 8], ['G', 6], ['C', 10]], drums: [[0, 'k'], [8, 's'], [14, 'k'], [14, 'c']] },
   defeat:  { bpm: 96,  melody: 'E5:2 D5:2 C5:2 B4:2 A4:10', chords: [['Am', 8], ['E', 2], ['Am', 8]], drums: [[0, 'k'], [8, 'k']] },
   draw:    { bpm: 110, melody: 'C5:2 F5:2 E5:2 D5:2 G4:10', chords: [['C', 4], ['F', 4], ['G', 10]], drums: [[0, 'k'], [8, 's']] },
 };
 
-const DRUM_BARS = {
-  rock:  { k: [0, 8, 10], s: [4, 12], h: [0, 2, 4, 6, 8, 10, 12, 14] },
-  drive: { k: [0, 6, 8, 14], s: [4, 12], h: [0, 2, 4, 6, 8, 10, 12, 14, 15] },
+const MUSIC_DRUMS = {
+  rock:     { k: [0, 8, 10], s: [4, 12], h: [0, 2, 4, 6, 8, 10, 12, 14] },
+  drive:    { k: [0, 6, 8, 14], s: [4, 12], h: [0, 2, 4, 6, 8, 10, 12, 14, 15] },
+  stomp:    { k: [0, 3, 8, 11], s: [4, 12], h: [0, 4, 8, 12] },
+  light:    { k: [0, 10], s: [12], h: [0, 2, 4, 6, 8, 10, 12, 14] },
+  march:    { k: [0, 8], s: [4, 12, 14, 15], h: [0, 2, 4, 6, 8, 10, 12, 14] },
+  halftime: { k: [0, 10], s: [8], h: [0, 4, 8, 12] },
+  waltz:    { k: [0], s: [4, 8], h: [0, 2, 4, 6, 8, 10] },
+  taiko:    { k: [0], t: [0, 3, 6, 8, 11, 14], s: [12], h: [2, 6, 10, 14] },
+  fire:     { k: [0, 4, 8, 12], s: [4, 12], h: [1, 3, 5, 7, 9, 11, 13, 15] },
+  heavy:    { k: [0, 3, 6, 8, 11], s: [4, 12], h: [0, 2, 4, 6, 8, 10, 12, 14] },
+};
+// Bass lines per bar: [step, midi, length] from the chord root r (octave 2), its fifth f and the
+// next bar's root n.
+const MUSIC_BASS = {
+  drive: (r, f) => [r, r, r + 12, r, r, r, f, r + 12].map((m, i) => [i * 2, m, 2]),
+  stomp: (r, f) => [[0, r, 3], [3, r, 2], [6, r + 12, 2], [8, r, 3], [11, r, 2], [14, f, 2]],
+  roll: (r, f) => [r, f, r + 12, f, r, f, r + 12, f].map((m, i) => [i * 2, m, 2]),
+  pump: r => Array.from({ length: 16 }, (_, i) => [i, i % 4 === 2 ? r + 12 : r, 1]),
+  waltz: (r, f) => [[0, r, 4], [4, r + 12, 2], [8, f, 2]],
+  pulse: (r, f) => [[0, r, 6], [8, r, 4], [12, f, 4]],
+  boss: (r, f, n) => {
+    let next = n;
+    while (next - r > 6) next -= 12;
+    while (r - next > 6) next += 12;
+    const lead = next === r ? r - 1 : next > r ? next - 1 : next + 1;   // creep toward the next root
+    return [r, r, r + 12, r, r, r + 12, lead, lead].map((m, i) => [i * 2, m, 2]);
+  },
+};
+// Harmony per bar: [step, channel, midi, length] from the chord tones t (octave 4) and the bar index.
+const arpCycle = t => [t[0], t[1], t[2], t[0] + 12, t[2], t[1]];
+const MUSIC_HARM = {
+  arp: t => Array.from({ length: 16 }, (_, i) => [i, 'harm', arpCycle(t)[i % 6], 1]),
+  stab: t => [2, 6, 10, 14].flatMap(s => t.map(m => [s, 'stab', m, 1])),
+  fastarp: t => Array.from({ length: 16 }, (_, i) => [i, 'harm', [t[0], t[1], t[2], t[0] + 12][i % 4] + 12, 1]),
+  slowarp: t => Array.from({ length: 8 }, (_, i) => [i * 2, 'harm', arpCycle(t)[i % 6], 2]),
+  power: t => [0, 8].flatMap(s => [t[0], t[0] + 7].map(m => [s, 'stab', m, 2])),
+  waltz: t => [4, 8].flatMap(s => t.map(m => [s, 'stab', m, 2])),
+  pad: (t, spb) => t.map(m => [0, 'pad', m, spb]).concat([2, 6, 10, 14].map(s => [s, 'stab', t[0] + 12, 1])),
 };
 
-function parseLine(line, startStep, ch, out) {
+const LEAD_DEFAULT = { duty: 0.25, gate: 0.92, vib: 0.007 };
+
+function parseLine(line, startStep, ch, out, opts) {
   let step = startStep;
   for (const tok of line.trim().split(/\s+/)) {
     const [n, l] = tok.split(':'); const len = Number(l);
-    if (n !== '.') out.push({ step, ch, midi: noteMidi(n), len });
+    if (n !== '.') out.push({ step, ch, midi: noteMidi(n), len, opts });
     step += len;
   }
   return step;
 }
 
-// Turns a song into a list of note events per step of one 256-step loop.
+// Turns a song into a list of note events per step of one loop.
 function compileSong(song) {
+  const spb = song.spb || 16;
+  const lead = { ...LEAD_DEFAULT, ...(song.lead || {}) };
+  const drums = MUSIC_DRUMS[song.drums];
   const ev = [];
   song.melody.forEach((bar, b) => {
-    const end = parseLine(bar, b * 16, 'lead', ev);
-    if (end !== (b + 1) * 16) throw new Error(`bar ${b + 1} is ${end - b * 16} steps`);
+    const end = parseLine(bar, b * spb, 'lead', ev, lead);
+    if (end !== (b + 1) * spb) throw new Error(`bar ${b + 1} is ${end - b * spb} steps, not ${spb}`);
   });
   song.chords.forEach((c, b) => {
-    const [root] = chordMidis(c, 2);
-    const fifth = chordMidis(c, 2)[2];
-    // driving eighth-note bass: root, root, octave, root, root, root, fifth, octave
-    [root, root, root + 12, root, root, root, fifth, root + 12].forEach((m, i) => ev.push({ step: b * 16 + i * 2, ch: 'bass', midi: m, len: 2 }));
-    const tones = chordMidis(c, 4);
-    const arpOn = b >= song.arpBars[0] && b < song.arpBars[1];
-    if (arpOn) {
-      const cycle = [tones[0], tones[1], tones[2], tones[0] + 12, tones[2], tones[1]];
-      for (let i = 0; i < 16; i++) ev.push({ step: b * 16 + i, ch: 'harm', midi: cycle[i % cycle.length], len: 1 });
-    } else {
-      [2, 6, 10, 14].forEach(s => tones.forEach(m => ev.push({ step: b * 16 + s, ch: 'stab', midi: m, len: 1 })));
-    }
-    const d = DRUM_BARS[song.drums];
+    const base = b * spb;
+    const r = chordMidis(c, 2)[0], f = r + 7;
+    const n = chordMidis(song.chords[(b + 1) % song.chords.length], 2)[0];
+    MUSIC_BASS[song.bass || 'drive'](r, f, n).forEach(([s, m, len]) => ev.push({ step: base + s, ch: 'bass', midi: m, len }));
+    const t = chordMidis(c, 4).slice(0, 3);
+    if (/5$/.test(c)) t[2] = t[0] + 12;    // power chord: root, fifth, octave
+    const harm = song.harm || 'mixed';
+    const mode = harm === 'mixed' ? (b >= song.arpBars[0] && b < song.arpBars[1] ? 'arp' : 'stab') : harm;
+    MUSIC_HARM[mode](t, spb).forEach(([s, ch, m, len]) => { if (s < spb) ev.push({ step: base + s, ch, midi: m, len }); });
     const fill = b % 8 === 7;
-    d.k.forEach(s => ev.push({ step: b * 16 + s, ch: 'kick' }));
-    (fill ? [4, 10, 12, 13, 14, 15] : d.s).forEach(s => ev.push({ step: b * 16 + s, ch: 'snare' }));
-    d.h.forEach(s => { if (!(fill && s >= 12)) ev.push({ step: b * 16 + s, ch: 'hat' }); });
+    drums.k.forEach(s => ev.push({ step: base + s, ch: 'kick' }));
+    (drums.t || []).forEach(s => ev.push({ step: base + s, ch: 'tom' }));
+    const sn = fill ? [...drums.s.filter(s => s < spb - 4), spb - 6, spb - 4, spb - 3, spb - 2, spb - 1] : drums.s;
+    sn.forEach(s => ev.push({ step: base + s, ch: 'snare' }));
+    drums.h.forEach(s => { if (!(fill && s >= spb - 4)) ev.push({ step: base + s, ch: 'hat' }); });
+    if (song.crash && b % 8 === 0) ev.push({ step: base, ch: 'crash' });
   });
-  const steps = song.melody.length * 16;
+  const steps = song.melody.length * spb;
   const at = Array.from({ length: steps }, () => []);
   ev.forEach(e => at[e.step % steps].push(e));
   return { bpm: song.bpm, steps, at };
@@ -3520,7 +3652,7 @@ function compileSong(song) {
 
 function compileJingle(j) {
   const ev = [];
-  const len = parseLine(j.melody, 0, 'lead', ev);
+  const len = parseLine(j.melody, 0, 'lead', ev, LEAD_DEFAULT);
   let step = 0;
   for (const [c, n] of j.chords) {
     ev.push({ step, ch: 'bass', midi: chordMidis(c, 2)[0], len: n });
@@ -3534,11 +3666,13 @@ function compileJingle(j) {
 // One voice of the synth. Works with a live or an offline AudioContext.
 function musicVoice(ctx, out, kit, e, t, stepDur) {
   const dur = (e.len || 1) * stepDur;
-  if (e.ch === 'kick') {
+  if (e.ch === 'kick' || e.ch === 'tom') {
     const o = ctx.createOscillator(), g = ctx.createGain();
-    o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
-    g.gain.setValueAtTime(0.85, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
-    o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.18);
+    const [f0, f1, vol, decay] = e.ch === 'kick' ? [150, 42, 0.85, 0.16] : [140, 80, 0.55, 0.26];
+    if (e.ch === 'tom') o.type = 'triangle';
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + decay * 0.75);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + decay);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + decay + 0.02);
     return;
   }
   if (e.ch === 'snare' || e.ch === 'hat' || e.ch === 'crash') {
@@ -3556,16 +3690,17 @@ function musicVoice(ctx, out, kit, e, t, stepDur) {
     return;
   }
   const o = ctx.createOscillator(), g = ctx.createGain();
-  const vol = { lead: 0.2, harm: 0.055, stab: 0.05, bass: 0.32, pad: 0.06 }[e.ch];
+  const lead = e.ch === 'lead' ? (e.opts || LEAD_DEFAULT) : null;
+  const vol = { lead: lead && lead.duty === 0.5 ? 0.17 : 0.2, harm: 0.055, stab: 0.05, bass: 0.32, pad: 0.06 }[e.ch];
   if (e.ch === 'bass') o.type = 'triangle';
-  else o.setPeriodicWave(e.ch === 'lead' ? kit.pulse25 : kit.pulse12);
+  else o.setPeriodicWave(lead ? kit[`pulse${Math.round(lead.duty * 1000)}`] || kit.pulse250 : kit.pulse125);
   o.frequency.setValueAtTime(midiFreq(e.midi), t);
-  if (e.ch === 'lead' && e.len >= 4) {          // a touch of vibrato on held notes
+  if (lead && lead.vib > 0 && e.len >= 4) {          // vibrato on held notes
     const lfo = ctx.createOscillator(), depth = ctx.createGain();
-    lfo.frequency.value = 5.5; depth.gain.setValueAtTime(0, t); depth.gain.linearRampToValueAtTime(midiFreq(e.midi) * 0.007, t + 0.25);
+    lfo.frequency.value = 5.5; depth.gain.setValueAtTime(0, t); depth.gain.linearRampToValueAtTime(midiFreq(e.midi) * lead.vib, t + 0.25);
     lfo.connect(depth); depth.connect(o.frequency); lfo.start(t); lfo.stop(t + dur + 0.05);
   }
-  const gate = e.ch === 'bass' ? dur * 0.85 : e.ch === 'harm' || e.ch === 'stab' ? Math.min(dur, 0.09) : dur * 0.92;
+  const gate = e.ch === 'bass' ? dur * 0.85 : e.ch === 'harm' || e.ch === 'stab' ? Math.min(dur, 0.09) : dur * (lead ? lead.gate : 0.92);
   g.gain.setValueAtTime(0, t);
   g.gain.linearRampToValueAtTime(vol, t + 0.004);
   g.gain.setTargetAtTime(vol * 0.7, t + 0.02, 0.1);
@@ -3582,7 +3717,7 @@ function musicKit(ctx) {
   const noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const d = noise.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  return { noise, pulse25: pulseWave(ctx, 0.25), pulse12: pulseWave(ctx, 0.125) };
+  return { noise, pulse500: pulseWave(ctx, 0.5), pulse250: pulseWave(ctx, 0.25), pulse125: pulseWave(ctx, 0.125) };
 }
 
 const BattleMusic = (() => {
@@ -3626,6 +3761,7 @@ const BattleMusic = (() => {
   }
   return {
     isEnabled: () => enabled,
+    current: () => (loop ? loop.id : null),
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     // Call inside a tap: phones only start audio from a user gesture.
     unlock() {
@@ -3693,9 +3829,11 @@ const BattleMusic = (() => {
   };
 })();
 
+// Two-player battles get the rival theme, each gym its own, and the League its finale.
 function songForBattle(gym) {
   if (!gym) return 'rival';
-  return opponentKind(gym.leader) === 'gym' ? 'gym' : 'league';
+  if (opponentKind(gym.leader) !== 'gym') return 'league';
+  return MUSIC_SONGS[gym.leader.id] ? gym.leader.id : 'gym';
 }
 
 function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, onPlayAgain, gym = null, onHome, onGymResult }) {
