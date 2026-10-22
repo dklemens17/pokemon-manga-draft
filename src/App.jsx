@@ -3265,6 +3265,7 @@ function DraftScreen({ trainers, pool, rosters, pickOrder, pickIndex, onPick, on
 function ReviewScreen({ trainers, rosters, onBattle, onReset, gym = null, backLabel = 'NEW DRAFT' }) {
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [quickBattle, setQuickBattle] = useState(false);
+  const [musicOn, setMusicOn] = useState(BattleMusic.isEnabled());
   return (
     <div className="min-screen" style={{ padding: '32px 16px 60px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <button onClick={onReset} style={{ alignSelf: 'flex-start', background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: 0, marginBottom: 20 }}>
@@ -3311,6 +3312,7 @@ function ReviewScreen({ trainers, rosters, onBattle, onReset, gym = null, backLa
 
       <div style={{ width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', gap: 10, marginTop: 32 }}>
         <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash, letterSpacing: '0.1em' }}>BEFORE YOU BEGIN</div>
+        <ToggleOption label="Battle music" desc="Original chiptune themes for every kind of battle" checked={musicOn} onChange={v => { setMusicOn(v); BattleMusic.setEnabled(v); }} />
         <ToggleOption label="Narrate aloud" desc="Read the story with text-to-speech" checked={audioEnabled} onChange={setAudioEnabled} />
         {!gym && (
           <ToggleOption label="Quick Battle" desc="Auto-resolve routine moves; you'll still decide the key moments" checked={quickBattle} onChange={setQuickBattle} />
@@ -3318,7 +3320,7 @@ function ReviewScreen({ trainers, rosters, onBattle, onReset, gym = null, backLa
       </div>
 
       <button
-        onClick={() => onBattle(audioEnabled, gym ? false : quickBattle)}
+        onClick={() => { BattleMusic.unlock(); onBattle(audioEnabled, gym ? false : quickBattle); }}
         style={{
           marginTop: 24, background: COLORS.jade, color: COLORS.paper, border: 'none', borderRadius: 4,
           padding: '14px 32px', fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 18, letterSpacing: '0.05em',
@@ -3398,6 +3400,304 @@ function GymResultPanel({ gym, result }) {
 
 // `gym` is null for a 2-player battle. In VS Computer it's { leader, challengerIsGuest }, side 1 is
 // the computer, and its turns are taken automatically after a short pause.
+// ===================== BATTLE MUSIC =====================
+// Original chiptune battle loops in the spirit of classic handheld battle themes, synthesized live
+// with Web Audio: a pulse-wave lead and harmony, a triangle bass and noise drums. No audio files.
+// All melodies here are original. Phones only allow sound after a tap, so the battle buttons call
+// BattleMusic.unlock() inside their tap handler; everything is a silent no-op without Web Audio.
+
+const NOTE_INDEX = { C: 0, 'C#': 1, Db: 1, D: 2, 'D#': 3, Eb: 3, E: 4, F: 5, 'F#': 6, Gb: 6, G: 7, 'G#': 8, Ab: 8, A: 9, 'A#': 10, Bb: 10, B: 11 };
+function noteMidi(n) {
+  const m = /^([A-G][#b]?)(-?\d)$/.exec(n);
+  return (Number(m[2]) + 1) * 12 + NOTE_INDEX[m[1]];
+}
+const midiFreq = m => 440 * Math.pow(2, (m - 69) / 12);
+
+const MUSIC_CHORDS = {
+  Em: ['E', 'G', 'B'], C: ['C', 'E', 'G'], D: ['D', 'F#', 'A'], B: ['B', 'D#', 'F#'], Am: ['A', 'C', 'E'], F: ['F', 'A', 'C'],
+  G: ['G', 'B', 'D'], E: ['E', 'G#', 'B'], Dm: ['D', 'F', 'A'], Bb: ['Bb', 'D', 'F'], Gm: ['G', 'Bb', 'D'], A: ['A', 'C#', 'E'],
+};
+// A chord's tones as rising MIDI notes, starting from its root in the given octave.
+function chordMidis(name, octave) {
+  const out = [];
+  for (const tone of MUSIC_CHORDS[name]) {
+    let m = noteMidi(tone + octave);
+    while (out.length && m <= out[out.length - 1]) m += 12;
+    out.push(m);
+  }
+  return out;
+}
+
+// Each song: 16 bars of sixteenth-note steps. Melody bars are "note:length" in sixteenths ('.' rests).
+const MUSIC_SONGS = {
+  // Two-player battles: "Rival Clash", E minor.
+  rival: {
+    bpm: 168, drums: 'rock', arpBars: [8, 16],
+    chords: ['Em', 'C', 'D', 'B', 'Em', 'C', 'Am', 'B', 'C', 'D', 'Em', 'Em', 'C', 'D', 'B', 'B'],
+    melody: [
+      'E5:3 B4:1 E5:2 G5:2 F#5:2 E5:2 D5:2 E5:2', 'G5:4 E5:2 C5:2 E5:2 G5:2 C6:4', 'A5:3 F#5:1 D5:2 F#5:2 A5:4 G5:2 F#5:2', 'D#5:4 F#5:2 B5:4 A5:2 G5:2 F#5:2',
+      'E5:2 G5:2 B5:4 A5:2 G5:2 F#5:2 G5:2', 'E5:4 C5:2 E5:2 G5:4 E5:4', 'A4:2 C5:2 E5:2 A5:2 G5:2 E5:2 C5:2 E5:2', 'D#5:6 F#5:2 B4:8',
+      'G5:2 G5:1 .:1 G5:2 A5:2 G5:4 E5:4', 'F#5:2 F#5:1 .:1 F#5:2 G5:2 A5:8', 'B5:4 A5:2 G5:2 F#5:2 G5:2 A5:4', 'B5:8 .:4 E5:2 F#5:2',
+      'G5:4 E5:4 C6:4 B5:2 A5:2', 'A5:4 F#5:4 D6:4 C6:2 A5:2', 'B5:4 A5:2 F#5:2 D#5:4 F#5:4', 'B5:8 A5:2 G5:2 F#5:2 D#5:2',
+    ],
+  },
+  // Gym Leader battles: "Gym Showdown", A minor.
+  gym: {
+    bpm: 176, drums: 'drive', arpBars: [0, 16],
+    chords: ['Am', 'F', 'G', 'E', 'Am', 'F', 'Dm', 'E', 'F', 'G', 'Am', 'Am', 'F', 'G', 'E', 'E'],
+    melody: [
+      'A4:2 C5:2 E5:2 A5:4 G5:2 E5:2 C5:2', 'F5:3 E5:1 C5:2 A4:2 C5:4 F5:4', 'G5:2 B4:2 D5:2 G5:2 F5:2 D5:2 B4:2 D5:2', 'E5:4 G#5:4 B5:4 G#5:4',
+      'C6:4 B5:2 A5:2 E5:4 A5:4', 'A5:2 G5:2 F5:2 E5:2 F5:4 C5:4', 'D5:2 F5:2 A5:2 D6:2 C6:2 A5:2 F5:2 A5:2', 'G#5:6 B5:2 E5:8',
+      'C6:2 .:1 C6:1 C6:2 A5:2 F5:4 A5:4', 'B5:2 .:1 B5:1 B5:2 G5:2 D5:4 G5:4', 'C6:4 B5:4 A5:4 E5:4', 'A5:4 C6:2 B5:2 A5:2 G5:2 E5:4',
+      'F5:2 A5:2 C6:2 F6:2 E6:4 C6:4', 'D6:4 B5:4 G5:4 B5:4', 'E6:4 D6:2 C6:2 B5:4 G#5:4', 'E5:2 G#5:2 B5:2 E6:2 D6:2 B5:2 G#5:2 B5:2',
+    ],
+  },
+  // Elite Four, Champion and Professor Oak: "Indigo Finale", D minor.
+  league: {
+    bpm: 184, drums: 'drive', arpBars: [0, 16],
+    chords: ['Dm', 'Bb', 'C', 'A', 'Dm', 'Bb', 'Gm', 'A', 'Gm', 'A', 'Dm', 'Dm', 'Bb', 'C', 'A', 'A'],
+    melody: [
+      'D5:2 F5:2 A5:2 D6:6 C6:2 A5:2', 'Bb5:4 A5:2 F5:2 D5:4 F5:4', 'E5:2 G5:2 C6:4 Bb5:2 A5:2 G5:4', 'A5:4 C#6:4 E6:4 C#6:2 A5:2',
+      'F6:4 E6:2 D6:2 A5:4 D6:4', 'D6:2 C6:2 Bb5:2 A5:2 Bb5:4 F5:4', 'G5:2 Bb5:2 D6:2 G6:2 F6:2 D6:2 Bb5:2 D6:2', 'C#6:6 E6:2 A5:8',
+      'Bb5:3 A5:1 G5:4 D5:4 G5:4', 'C#6:3 B5:1 A5:4 E5:4 A5:4', 'D6:2 E6:2 F6:4 E6:2 D6:2 C6:2 A5:2', 'D6:8 .:4 A5:2 C6:2',
+      'D6:4 F6:4 Bb5:4 A5:2 F5:2', 'E6:4 G6:4 C6:4 D6:2 E6:2', 'F6:4 E6:2 D6:2 C#6:4 E6:4', 'A6:4 G6:2 E6:2 C#6:2 A5:2 B5:2 C#6:2',
+    ],
+  },
+};
+// Short one-shot jingles for the result: [melody, chords-per-segment as [chord, steps]...]
+const MUSIC_JINGLES = {
+  victory: { bpm: 150, melody: 'C5:1 E5:1 G5:1 C6:5 G5:2 A5:2 B5:2 C6:10', chords: [['C', 8], ['G', 6], ['C', 10]], drums: [[0, 'k'], [8, 's'], [14, 'k'], [14, 'c']] },
+  defeat:  { bpm: 96,  melody: 'E5:2 D5:2 C5:2 B4:2 A4:10', chords: [['Am', 8], ['E', 2], ['Am', 8]], drums: [[0, 'k'], [8, 'k']] },
+  draw:    { bpm: 110, melody: 'C5:2 F5:2 E5:2 D5:2 G4:10', chords: [['C', 4], ['F', 4], ['G', 10]], drums: [[0, 'k'], [8, 's']] },
+};
+
+const DRUM_BARS = {
+  rock:  { k: [0, 8, 10], s: [4, 12], h: [0, 2, 4, 6, 8, 10, 12, 14] },
+  drive: { k: [0, 6, 8, 14], s: [4, 12], h: [0, 2, 4, 6, 8, 10, 12, 14, 15] },
+};
+
+function parseLine(line, startStep, ch, out) {
+  let step = startStep;
+  for (const tok of line.trim().split(/\s+/)) {
+    const [n, l] = tok.split(':'); const len = Number(l);
+    if (n !== '.') out.push({ step, ch, midi: noteMidi(n), len });
+    step += len;
+  }
+  return step;
+}
+
+// Turns a song into a list of note events per step of one 256-step loop.
+function compileSong(song) {
+  const ev = [];
+  song.melody.forEach((bar, b) => {
+    const end = parseLine(bar, b * 16, 'lead', ev);
+    if (end !== (b + 1) * 16) throw new Error(`bar ${b + 1} is ${end - b * 16} steps`);
+  });
+  song.chords.forEach((c, b) => {
+    const [root] = chordMidis(c, 2);
+    const fifth = chordMidis(c, 2)[2];
+    // driving eighth-note bass: root, root, octave, root, root, root, fifth, octave
+    [root, root, root + 12, root, root, root, fifth, root + 12].forEach((m, i) => ev.push({ step: b * 16 + i * 2, ch: 'bass', midi: m, len: 2 }));
+    const tones = chordMidis(c, 4);
+    const arpOn = b >= song.arpBars[0] && b < song.arpBars[1];
+    if (arpOn) {
+      const cycle = [tones[0], tones[1], tones[2], tones[0] + 12, tones[2], tones[1]];
+      for (let i = 0; i < 16; i++) ev.push({ step: b * 16 + i, ch: 'harm', midi: cycle[i % cycle.length], len: 1 });
+    } else {
+      [2, 6, 10, 14].forEach(s => tones.forEach(m => ev.push({ step: b * 16 + s, ch: 'stab', midi: m, len: 1 })));
+    }
+    const d = DRUM_BARS[song.drums];
+    const fill = b % 8 === 7;
+    d.k.forEach(s => ev.push({ step: b * 16 + s, ch: 'kick' }));
+    (fill ? [4, 10, 12, 13, 14, 15] : d.s).forEach(s => ev.push({ step: b * 16 + s, ch: 'snare' }));
+    d.h.forEach(s => { if (!(fill && s >= 12)) ev.push({ step: b * 16 + s, ch: 'hat' }); });
+  });
+  const steps = song.melody.length * 16;
+  const at = Array.from({ length: steps }, () => []);
+  ev.forEach(e => at[e.step % steps].push(e));
+  return { bpm: song.bpm, steps, at };
+}
+
+function compileJingle(j) {
+  const ev = [];
+  const len = parseLine(j.melody, 0, 'lead', ev);
+  let step = 0;
+  for (const [c, n] of j.chords) {
+    ev.push({ step, ch: 'bass', midi: chordMidis(c, 2)[0], len: n });
+    chordMidis(c, 4).forEach(m => ev.push({ step, ch: 'pad', midi: m, len: n }));
+    step += n;
+  }
+  j.drums.forEach(([s, kind]) => ev.push({ step: s, ch: { k: 'kick', s: 'snare', c: 'crash' }[kind] }));
+  return { bpm: j.bpm, steps: Math.max(len, step), ev };
+}
+
+// One voice of the synth. Works with a live or an offline AudioContext.
+function musicVoice(ctx, out, kit, e, t, stepDur) {
+  const dur = (e.len || 1) * stepDur;
+  if (e.ch === 'kick') {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
+    g.gain.setValueAtTime(0.85, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + 0.18);
+    return;
+  }
+  if (e.ch === 'snare' || e.ch === 'hat' || e.ch === 'crash') {
+    const src = ctx.createBufferSource(); src.buffer = kit.noise;
+    const f = ctx.createBiquadFilter(), g = ctx.createGain();
+    const spec = { snare: ['bandpass', 1900, 0.32, 0.12], hat: ['highpass', 7000, 0.08, 0.035], crash: ['highpass', 5000, 0.18, 0.9] }[e.ch];
+    f.type = spec[0]; f.frequency.value = spec[1];
+    g.gain.setValueAtTime(spec[2], t); g.gain.exponentialRampToValueAtTime(0.001, t + spec[3]);
+    src.connect(f); f.connect(g); g.connect(out); src.start(t, Math.random() * 0.5); src.stop(t + spec[3] + 0.02);
+    if (e.ch === 'snare') {
+      const o = ctx.createOscillator(), g2 = ctx.createGain(); o.type = 'triangle'; o.frequency.value = 190;
+      g2.gain.setValueAtTime(0.3, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+      o.connect(g2); g2.connect(out); o.start(t); o.stop(t + 0.08);
+    }
+    return;
+  }
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  const vol = { lead: 0.2, harm: 0.055, stab: 0.05, bass: 0.32, pad: 0.06 }[e.ch];
+  if (e.ch === 'bass') o.type = 'triangle';
+  else o.setPeriodicWave(e.ch === 'lead' ? kit.pulse25 : kit.pulse12);
+  o.frequency.setValueAtTime(midiFreq(e.midi), t);
+  if (e.ch === 'lead' && e.len >= 4) {          // a touch of vibrato on held notes
+    const lfo = ctx.createOscillator(), depth = ctx.createGain();
+    lfo.frequency.value = 5.5; depth.gain.setValueAtTime(0, t); depth.gain.linearRampToValueAtTime(midiFreq(e.midi) * 0.007, t + 0.25);
+    lfo.connect(depth); depth.connect(o.frequency); lfo.start(t); lfo.stop(t + dur + 0.05);
+  }
+  const gate = e.ch === 'bass' ? dur * 0.85 : e.ch === 'harm' || e.ch === 'stab' ? Math.min(dur, 0.09) : dur * 0.92;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.004);
+  g.gain.setTargetAtTime(vol * 0.7, t + 0.02, 0.1);
+  g.gain.setTargetAtTime(0, t + gate, 0.015);
+  o.connect(g); g.connect(out); o.start(t); o.stop(t + gate + 0.1);
+}
+
+function pulseWave(ctx, duty) {
+  const n = 40, real = new Float32Array(n), imag = new Float32Array(n);
+  for (let k = 1; k < n; k++) real[k] = (2 / (k * Math.PI)) * Math.sin(k * Math.PI * duty);
+  return ctx.createPeriodicWave(real, imag);
+}
+function musicKit(ctx) {
+  const noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+  const d = noise.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return { noise, pulse25: pulseWave(ctx, 0.25), pulse12: pulseWave(ctx, 0.125) };
+}
+
+const BattleMusic = (() => {
+  const VOLUME = 0.5;
+  const PREF_KEY = 'the-draft-music';
+  let ctx = null, master = null, kit = null, loop = null, ducked = false;
+  let enabled = true;
+  try { enabled = localStorage.getItem(PREF_KEY) !== 'off'; } catch (e) { /* storage blocked: default on */ }
+  const compiled = {};
+  const listeners = new Set();
+
+  function ensure() {
+    if (ctx) return ctx;
+    const AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
+    if (!AC) return null;
+    try { ctx = new AC(); } catch (e) { return null; }
+    const comp = ctx.createDynamicsCompressor();
+    master = ctx.createGain(); master.gain.value = VOLUME;
+    master.connect(comp); comp.connect(ctx.destination);
+    kit = musicKit(ctx);
+    document.addEventListener('visibilitychange', () => {
+      if (!ctx) return;
+      if (document.hidden) ctx.suspend(); else if (loop) ctx.resume();
+    });
+    return ctx;
+  }
+  function tick() {
+    if (!loop) return;
+    const stepDur = 60 / loop.song.bpm / 4;
+    while (loop.t0 + loop.step * stepDur < ctx.currentTime + 0.2) {
+      const t = loop.t0 + loop.step * stepDur;
+      if (t >= ctx.currentTime - 0.02) for (const e of loop.song.at[loop.step % loop.song.steps]) musicVoice(ctx, loop.bus, kit, e, t, stepDur);
+      loop.step++;
+    }
+    loop.timer = setTimeout(tick, 50);
+  }
+  function fadeOut(bus, sec) {
+    if (!bus || !ctx) return;
+    bus.gain.setTargetAtTime(0, ctx.currentTime, sec / 3);
+    setTimeout(() => { try { bus.disconnect(); } catch (e) { /* already gone */ } }, sec * 1000 + 200);
+  }
+  return {
+    isEnabled: () => enabled,
+    onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    // Call inside a tap: phones only start audio from a user gesture.
+    unlock() {
+      if (!enabled) return;
+      const c = ensure();
+      if (c && c.state === 'suspended') c.resume();
+    },
+    setEnabled(on, resumeId) {
+      enabled = on;
+      try { localStorage.setItem(PREF_KEY, on ? 'on' : 'off'); } catch (e) { /* not saved; fine */ }
+      if (on) { this.unlock(); if (resumeId) this.play(resumeId); } else this.stop(0.3);
+      listeners.forEach(fn => fn(on));
+    },
+    play(id) {
+      if (loop && loop.id === id) return;
+      this.stop(0.4);
+      if (!enabled || !MUSIC_SONGS[id]) return;
+      const c = ensure();
+      if (!c) return;
+      if (c.state === 'suspended') c.resume();
+      compiled[id] = compiled[id] || compileSong(MUSIC_SONGS[id]);
+      const bus = c.createGain(); bus.gain.value = ducked ? 0.3 : 1; bus.connect(master);
+      loop = { id, song: compiled[id], t0: c.currentTime + 0.1, step: 0, bus, timer: null };
+      tick();
+    },
+    stop(fade = 0.4) {
+      if (!loop) return;
+      clearTimeout(loop.timer);
+      fadeOut(loop.bus, fade);
+      loop = null;
+    },
+    jingle(kind) {
+      this.stop(0.25);
+      if (!enabled || !MUSIC_JINGLES[kind]) return;
+      const c = ensure();
+      if (!c) return;
+      const j = compileJingle(MUSIC_JINGLES[kind]);
+      const stepDur = 60 / j.bpm / 4, t0 = c.currentTime + 0.3;
+      const bus = c.createGain(); bus.gain.value = 1; bus.connect(master);
+      j.ev.forEach(e => musicVoice(c, bus, kit, e, t0 + e.step * stepDur, stepDur));
+      setTimeout(() => { try { bus.disconnect(); } catch (e) { /* gone */ } }, (j.steps * stepDur + 2) * 1000);
+    },
+    // Narration reads over the music: lower it while a line is spoken.
+    duck(on) {
+      ducked = on;
+      if (loop && ctx) loop.bus.gain.setTargetAtTime(on ? 0.3 : 1, ctx.currentTime, 0.08);
+    },
+    // For tests: render a few seconds of a song or jingle offline and return the samples' peak/RMS.
+    async renderCheck(id, seconds = 6) {
+      const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const oc = new OAC(1, Math.round(44100 * seconds), 44100);
+      const k = musicKit(oc), out = oc.createGain(); out.gain.value = VOLUME;
+      const comp = oc.createDynamicsCompressor(); out.connect(comp); comp.connect(oc.destination);
+      if (MUSIC_SONGS[id]) {
+        const s = compileSong(MUSIC_SONGS[id]), stepDur = 60 / s.bpm / 4;
+        for (let i = 0; i * stepDur < seconds; i++) for (const e of s.at[i % s.steps]) musicVoice(oc, out, k, e, i * stepDur, stepDur);
+      } else {
+        const j = compileJingle(MUSIC_JINGLES[id]), stepDur = 60 / j.bpm / 4;
+        j.ev.forEach(e => musicVoice(oc, out, k, e, e.step * stepDur, stepDur));
+      }
+      const buf = await oc.startRendering(); const d = buf.getChannelData(0);
+      let peak = 0, sum = 0; for (let i = 0; i < d.length; i++) { const a = Math.abs(d[i]); if (a > peak) peak = a; sum += d[i] * d[i]; }
+      return { peak, rms: Math.sqrt(sum / d.length) };
+    },
+  };
+})();
+
+function songForBattle(gym) {
+  if (!gym) return 'rival';
+  return opponentKind(gym.leader) === 'gym' ? 'gym' : 'league';
+}
+
 function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, onPlayAgain, gym = null, onHome, onGymResult }) {
   const cpuSide = gym ? 1 : null;
   const cpuSkill = gym ? gym.leader.skill : 0;
@@ -3411,6 +3711,14 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
   const aceIndex1 = gym ? rosters[1].findIndex(p => p.aceOf) : -1;
   const aceIndices = [rosters[0].map((p, i) => (p.earnedAce ? i : -1)).filter(i => i >= 0), aceIndex1 >= 0 ? [aceIndex1] : []];
   const [battle, setBattle] = useState(() => initBattle(rosters[0], rosters[1], [trainers[0].name, trainers[1].name], gym ? gym.leader : null));
+  const songId = songForBattle(gym);
+  const [musicOn, setMusicOn] = useState(BattleMusic.isEnabled());
+  useEffect(() => BattleMusic.onChange(setMusicOn), []);
+  useEffect(() => {
+    BattleMusic.play(songId);
+    return () => BattleMusic.stop(0.5);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const logEndRef = useRef(null);
   const logBoxRef = useRef(null);
   const mountedRef = useRef(true);
@@ -3424,11 +3732,39 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
     };
   }, []);
 
+  // Keep the newest story line in view. A new line scrolls to it; and because the story box also
+  // changes size without a new line (CONTINUE turning into the move list, a switch prompt, the AI
+  // intro arriving late, the previous line shrinking to its small style), any size or content change
+  // re-pins it to the bottom -- unless the player has scrolled up to reread, which pauses that until
+  // they come back down.
+  const stickToEndRef = useRef(true);
+  const ignoreScrollUntilRef = useRef(0);
+  const scrollStoryToEnd = (smooth) => {
+    const box = logBoxRef.current;
+    if (!box) return;
+    if (smooth) ignoreScrollUntilRef.current = Date.now() + 700;
+    if (typeof box.scrollTo === 'function') box.scrollTo({ top: box.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    else box.scrollTop = box.scrollHeight;
+  };
+  useEffect(() => {
+    stickToEndRef.current = true;
+    scrollStoryToEnd(true);
+  }, [battle.log.length]);
   useEffect(() => {
     const box = logBoxRef.current;
-    if (box && typeof box.scrollTo === 'function') box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
-    else if (logEndRef.current && logEndRef.current.scrollIntoView) logEndRef.current.scrollIntoView({ block: 'end' });
-  }, [battle.log.length]);
+    if (!box) return undefined;
+    const onScroll = () => {
+      if (Date.now() < ignoreScrollUntilRef.current) return;   // our own smooth scroll is still moving
+      stickToEndRef.current = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+    };
+    const repin = () => { if (stickToEndRef.current) scrollStoryToEnd(false); };
+    box.addEventListener('scroll', onScroll, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(repin) : null;
+    if (ro) ro.observe(box);
+    const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(repin) : null;
+    if (mo) mo.observe(box, { childList: true, subtree: true, characterData: true, attributes: true });
+    return () => { box.removeEventListener('scroll', onScroll); if (ro) ro.disconnect(); if (mo) mo.disconnect(); };
+  }, [splashOpen]);   // the story box only exists once a gym's versus splash is dismissed
 
   // The ONE live AI call per battle: fetch a scene-setting intro for the opening beat only.
   // Fires once on mount; every other beat's text is generated locally and instantly (see narrate()).
@@ -3459,6 +3795,8 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
     if (voice) utterance.voice = voice;
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
+    utterance.onstart = () => BattleMusic.duck(true);
+    utterance.onend = utterance.onerror = () => BattleMusic.duck(false);
     window.speechSynthesis.speak(utterance);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioEnabled, battle.log.length, battle.log[0]?.aiText, splashOpen]);
@@ -3522,6 +3860,8 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
     if (voice) utterance.voice = voice;
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
+    utterance.onstart = () => BattleMusic.duck(true);
+    utterance.onend = utterance.onerror = () => BattleMusic.duck(false);
     window.speechSynthesis.speak(utterance);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [audioEnabled, epilogueText]);
@@ -3536,6 +3876,13 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
   const showDefenseChoice = !hasMoreBeats && battle.winner === null && battle.needsSwitch.length === 0 && battle.pendingAttackMove !== null;
   const showSwitch = !hasMoreBeats && battle.winner === null && battle.needsSwitch.length > 0;
   const showWinner = !hasMoreBeats && battle.winner !== null;
+  const jinglePlayedRef = useRef(false);
+  useEffect(() => {
+    if (!showWinner || jinglePlayedRef.current) return;
+    jinglePlayedRef.current = true;
+    BattleMusic.jingle(battle.winner === 'draw' ? 'draw' : (gym && battle.winner !== 0) ? 'defeat' : 'victory');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showWinner]);
 
   const handleAttack = (moveName) => setBattle(prev => chooseAttack(prev, moveName));
   const handleDefense = (moveName) => setBattle(prev => chooseDefense(prev, moveName));
@@ -3644,9 +3991,18 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
       padding: '10px 16px', paddingBottom: 'max(12px, env(safe-area-inset-bottom))', boxSizing: 'border-box',
       maxWidth: 560, margin: '0 auto', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1,
     }}>
-      <button onClick={onBack} style={{ position: 'relative', flexShrink: 0, alignSelf: 'flex-start', background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: '4px 0', marginBottom: 6 }}>
-        &larr; TEAMS
-      </button>
+      <div style={{ position: 'relative', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', color: COLORS.ash, fontFamily: FONT_MONO, fontSize: 10, letterSpacing: '0.1em', cursor: 'pointer', padding: '4px 0' }}>
+          &larr; TEAMS
+        </button>
+        <button
+          onClick={() => BattleMusic.setEnabled(!musicOn, showWinner ? null : songId)}
+          aria-pressed={musicOn}
+          aria-label={musicOn ? 'Battle music on. Tap to turn it off' : 'Battle music off. Tap to turn it on'}
+          style={{ background: 'none', border: `1px solid ${musicOn ? COLORS.jadeBright : COLORS.hairline}`, borderRadius: 10, color: musicOn ? COLORS.jadeBright : COLORS.ash, fontFamily: FONT_MONO, fontSize: 9, letterSpacing: '0.1em', cursor: 'pointer', padding: '2px 8px' }}>
+          &#9835; {musicOn ? 'ON' : 'OFF'}
+        </button>
+      </div>
 
       <div style={{ position: 'relative', flexShrink: 0, display: 'flex', gap: 12, marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${gym ? hexA(opponentColor(gym.leader), 0.5) : COLORS.hairline}` }}>
         <BattlerPanel battler={battle.log[battle.log.length - 1].snapshotAfter[0]} align="left" aceIndices={aceIndices[0]} />
@@ -3654,7 +4010,7 @@ function BattleScreen({ trainers, rosters, audioEnabled, quickBattle, onBack, on
         <BattlerPanel battler={battle.log[battle.log.length - 1].snapshotAfter[1]} align="right" aceIndices={aceIndices[1]} />
       </div>
 
-      <div ref={logBoxRef} style={{ position: 'relative', ...(showWinner ? { maxHeight: '40vh' } : { flex: 1, minHeight: 0 }), overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 10, paddingRight: 4 }}>
+      <div ref={logBoxRef} data-story="" style={{ position: 'relative', ...(showWinner ? { maxHeight: '40vh' } : { flex: 1, minHeight: 0 }), overflowY: 'auto', WebkitOverflowScrolling: 'touch', display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 10, paddingRight: 4 }}>
         {battle.log.map((entry, i) => {
           const isLatest = i === battle.log.length - 1;
           if (entry.event.type === 'leader_line') {

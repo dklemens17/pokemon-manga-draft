@@ -41,6 +41,8 @@ On the draft screen each trainer has a color, and a row of pips shows the snake 
 
 **Battle presentation.** Every gym and League battle opens with a manga-style versus splash: the opponent's badge, title and taunt facing your team. Each arena has its own animated backdrop in the opponent's color (stone cracks for Brock, waves for Misty, embers for Blaine, falling snow for Lorelei, and so on). Opponents speak up when their ace takes the field, which also gets an entrance banner, when they're down to their last Pokémon, and when the battle ends. In every battle, two-player included, a row of pips under each Pokémon shows who's still standing, and an evolution stops the action for a short scene: the old name glows in its type color, flickers into the new form under a burst of light, and the new types and stat boost are revealed (tap to skip). Animations switch off on phones set to reduce motion.
 
+**Battle music.** Every battle has original chiptune music, synthesized in the browser with no audio files: a rival theme for two-player battles, a gym theme, and a League theme for the Elite Four, Gary and Professor Oak. Each result gets its own victory, defeat or draw jingle. Turn it on or off on the team screen or with the ♫ button during a battle; the choice is remembered on that device. Music gets quieter while narration reads aloud. On iPhone, the silent switch mutes it.
+
 ## Run it locally
 
 Requires Node 18 or newer.
