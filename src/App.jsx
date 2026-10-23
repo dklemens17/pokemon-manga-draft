@@ -419,32 +419,35 @@ const GYM_LEADERS = [
 // so they're tuned against a player who drafts for type and stats: about 31% vs Gary and 25% vs
 // Professor Oak (bringing three aces), the hardest battle in the game.
 //
+// League drafts are dealt fully evolved (getGymPool), so the League's own Pokémon are scaled to hold
+// their one-on-one targets against fully evolved draftables.
+//
 // Like the gym exclusives, the Elite Four's Pokémon never appear in the two-player draft at any
 // evolution stage. Gary and Professor Oak use classic Kanto Pokémon fully evolved (Gary's Blastoise,
 // Oak's starters), so a few of theirs are species a drafted Pokémon could evolve into mid-battle.
 const LEAGUE = [
   { id: 'lorelei', kind: 'elite', name: 'Lorelei', poss: 'her', mark: 'L', type: 'Ice',
-    skill: 0.25, loyalty: 1.0, trainedPct: 18,
+    skill: 0.17, loyalty: 1.0, trainedPct: 0,
     style: { name: 'Elite Four', desc: 'Cool, composed, and merciless as a blizzard' },
     taunt: `Welcome to the Pokémon League. No one leaves my chamber without feeling the cold.` },
   { id: 'bruno', kind: 'elite', name: 'Bruno', poss: 'his', mark: 'B', type: 'Fighting',
-    skill: 0.50, loyalty: 1.0, trainedPct: 20,
+    skill: 0.33, loyalty: 1.0, trainedPct: 0,
     style: { name: 'Elite Four', desc: 'Pure strength, honed by endless training' },
     taunt: `My Pokémon and I have trained our whole lives for this. Hoo hah!` },
   { id: 'agatha', kind: 'elite', name: 'Agatha', poss: 'her', mark: 'A', type: 'Ghost',
-    skill: 0.00, loyalty: 1.0, trainedPct: 22,
+    skill: 0.00, loyalty: 1.0, trainedPct: 5,
     style: { name: 'Elite Four', desc: 'A sharp-tongued veteran with tricks from the other side' },
     taunt: `Oak's precious trainers, always so sure of themselves. Let's see how you handle a real battle.` },
   { id: 'lance', kind: 'elite', name: 'Lance', poss: 'his', mark: 'L', type: 'Dragon',
-    skill: 0.04, loyalty: 1.0, trainedPct: 22,
+    skill: 0.04, loyalty: 1.0, trainedPct: 11,
     style: { name: 'Elite Four', desc: 'The Dragon Master, proud and fearless' },
     taunt: `Dragons are mythical Pokémon, and they are not easily defeated. Show me your resolve.` },
   { id: 'gary', kind: 'champion', name: 'Gary', poss: 'his', mark: 'G', type: null, color: '#D9B54A',
-    skill: 0.03, loyalty: 0, trainedPct: 21,
+    skill: 0.03, loyalty: 0, trainedPct: 11,
     style: { name: 'Champion', desc: 'Cocky, brilliant, and always one step ahead of his rival' },
     taunt: `Smell ya later? Not this time. I've been waiting for you at the top, and I'm not giving it up.` },
   { id: 'oak', kind: 'professor', name: 'Professor Oak', poss: 'his', mark: 'O', type: null, color: '#EDE6D6', maxAces: 3,
-    skill: 0.52, loyalty: 0, trainedPct: 22,
+    skill: 0.41, loyalty: 0, trainedPct: 0,
     style: { name: 'Professor', desc: 'The world-famous Pokémon Professor, once a formidable trainer himself' },
     taunt: `So you've come all this way. Long ago I was a pretty fair trainer myself. Let's see what you've learned!` },
 ];
@@ -452,43 +455,43 @@ const LEAGUE = [
 // Every opponent's ace and signature Pokémon live in the same two maps as the gym leaders' (keyed by
 // opponent id), so the draft and battle code treats all of them alike.
 Object.assign(GYM_ACES, {
-  lorelei: gymAce('lorelei', mon('Lapras',    ['Water','Ice'],      115,75,84,53, ['Water Pulse','Freeze-Dry'],['Body Slam','Ice Shard'],['Surf','Ice Beam'], ['Blizzard','Hydro Pump'], null)),
-  bruno:   gymAce('bruno',   mon('Hariyama',  ['Fighting'],         121,100,50,42, ['Brick Break','Rock Slide'],['Force Palm','Ice Punch'],['Hammer Arm','Thunder Punch'], ['Superpower','Earthquake'], null)),
-  agatha:  gymAce('agatha',  mon('Dusknoir',  ['Ghost'],            48,107,145,48, ['Shadow Punch','Ice Punch'],['Shadow Sneak','Fire Punch'],['Hex','Thunder Punch'], ['Poltergeist','Earthquake'], null)),
-  lance:   gymAce('lance',   mon('Salamence', ['Dragon','Flying'],  92,130,77,96, ['Dragon Claw','Fire Fang'],['Air Cutter','Crunch'],['Dragon Rush','Aerial Ace'], ['Outrage','Hurricane'], null)),
-  gary:    gymAce('gary',    mon('Blastoise', ['Water'],            77,83,103,76, ['Water Pulse','Bite'],['Aqua Tail','Ice Fang'],['Liquidation','Flash Cannon'], ['Hydro Cannon','Blizzard'], null)),
-  oak:     gymAce('oak',     mon('Mew',       ['Psychic'],          97,97,97,97, ['Psycho Cut','Shadow Claw'],['Mega Punch','Ice Beam'],['Psychic','Thunderbolt'], ['Psystrike','Focus Blast'], null)),
+  lorelei: gymAce('lorelei', mon('Lapras',    ['Water','Ice'],      141,92,103,65, ['Water Pulse','Freeze-Dry'],['Body Slam','Ice Shard'],['Surf','Ice Beam'], ['Blizzard','Hydro Pump'], null)),
+  bruno:   gymAce('bruno',   mon('Hariyama',  ['Fighting'],         157,129,65,54, ['Brick Break','Rock Slide'],['Force Palm','Ice Punch'],['Hammer Arm','Thunder Punch'], ['Superpower','Earthquake'], null)),
+  agatha:  gymAce('agatha',  mon('Dusknoir',  ['Ghost'],            60,133,180,60, ['Shadow Punch','Ice Punch'],['Shadow Sneak','Fire Punch'],['Hex','Thunder Punch'], ['Poltergeist','Earthquake'], null)),
+  lance:   gymAce('lance',   mon('Salamence', ['Dragon','Flying'],  111,157,93,116, ['Dragon Claw','Fire Fang'],['Air Cutter','Crunch'],['Dragon Rush','Aerial Ace'], ['Outrage','Hurricane'], null)),
+  gary:    gymAce('gary',    mon('Blastoise', ['Water'],            96,103,128,95, ['Water Pulse','Bite'],['Aqua Tail','Ice Fang'],['Liquidation','Flash Cannon'], ['Hydro Cannon','Blizzard'], null)),
+  oak:     gymAce('oak',     mon('Mew',       ['Psychic'],          122,122,122,122, ['Psycho Cut','Shadow Claw'],['Mega Punch','Ice Beam'],['Psychic','Thunderbolt'], ['Psystrike','Focus Blast'], null)),
 });
 Object.assign(GYM_SIGNATURES, {
   lorelei: [
-    gymSignature('lorelei', mon('Dewgong',   ['Water','Ice'],    67,52,71,52, ['Waterfall','Ice Shard'],['Headbutt','Powder Snow'],['Ice Beam','Brine'], ['Blizzard'], null)),
-    gymSignature('lorelei', mon('Walrein',   ['Ice','Water'],    70,58,58,42, ['Aurora Beam','Body Slam'],['Aqua Jet','Avalanche'],['Liquidation','Crunch'], ['Blizzard','Hydro Pump'], null)),
-    gymSignature('lorelei', mon('Weavile',   ['Dark','Ice'],     52,90,49,93, ['Feint Attack','Frost Breath'],['Fury Swipes','Ice Spinner'],['Throat Chop','Ice Shard'], ['Blizzard','Dark Pulse'], null)),
+    gymSignature('lorelei', mon('Dewgong',   ['Water','Ice'],    89,69,94,69, ['Waterfall','Ice Shard'],['Headbutt','Powder Snow'],['Ice Beam','Brine'], ['Blizzard'], null)),
+    gymSignature('lorelei', mon('Walrein',   ['Ice','Water'],    92,77,77,55, ['Aurora Beam','Body Slam'],['Aqua Jet','Avalanche'],['Liquidation','Crunch'], ['Blizzard','Hydro Pump'], null)),
+    gymSignature('lorelei', mon('Weavile',   ['Dark','Ice'],     71,122,67,126, ['Feint Attack','Frost Breath'],['Fury Swipes','Ice Spinner'],['Throat Chop','Ice Shard'], ['Blizzard','Dark Pulse'], null)),
   ],
   bruno: [
-    gymSignature('bruno',   mon('Hitmontop', ['Fighting'],       36,69,80,51, ['Double Kick','Rapid Spin'],['Mach Punch','Rock Tomb'],['Close Combat','Dig'], ['Focus Blast'], null)),
-    gymSignature('bruno',   mon('Heracross', ['Bug','Fighting'], 50,78,59,53, ['Pin Missile','Brick Break'],['Horn Attack','Low Kick'],['U-turn','Rock Slide'], ['Megahorn','Close Combat'], null)),
-    gymSignature('bruno',   mon('Medicham',  ['Fighting','Psychic'], 45,68,57,61, ['Karate Chop','Zen Headbutt'],['Confusion','Ice Punch'],['Sky Uppercut','Psycho Cut'], ['High Jump Kick','Psyshock'], null)),
+    gymSignature('bruno',   mon('Hitmontop', ['Fighting'],       53,102,118,75, ['Double Kick','Rapid Spin'],['Mach Punch','Rock Tomb'],['Close Combat','Dig'], ['Focus Blast'], null)),
+    gymSignature('bruno',   mon('Heracross', ['Bug','Fighting'], 71,111,84,75, ['Pin Missile','Brick Break'],['Horn Attack','Low Kick'],['U-turn','Rock Slide'], ['Megahorn','Close Combat'], null)),
+    gymSignature('bruno',   mon('Medicham',  ['Fighting','Psychic'], 66,99,83,89, ['Karate Chop','Zen Headbutt'],['Confusion','Ice Punch'],['Sky Uppercut','Psycho Cut'], ['High Jump Kick','Psyshock'], null)),
   ],
   agatha: [
-    gymSignature('agatha',  mon('Mismagius', ['Ghost'],          40,70,70,70, ['Astonish','Psybeam'],['Lick','Seed Bomb'],['Shadow Ball','Thunderbolt'], ['Phantom Force','Psychic'], null)),
-    gymSignature('agatha',  mon('Banette',   ['Ghost'],          51,92,52,52, ['Shadow Claw','Sucker Punch'],['Shadow Sneak','Ominous Wind'],['Shadow Ball','Thunder Punch'], ['Phantom Force'], null)),
-    gymSignature('agatha',  mon('Sableye',   ['Dark','Ghost'],   47,70,70,47, ['Shadow Sneak','Brutal Swing'],['Ominous Wind','Fury Swipes'],['Shadow Claw','Dark Pulse'], ['Foul Play','Shadow Ball'], null)),
+    gymSignature('agatha',  mon('Mismagius', ['Ghost'],          56,98,98,98, ['Astonish','Psybeam'],['Lick','Seed Bomb'],['Shadow Ball','Thunderbolt'], ['Phantom Force','Psychic'], null)),
+    gymSignature('agatha',  mon('Banette',   ['Ghost'],          68,123,70,70, ['Shadow Claw','Sucker Punch'],['Shadow Sneak','Ominous Wind'],['Shadow Ball','Thunder Punch'], ['Phantom Force'], null)),
+    gymSignature('agatha',  mon('Sableye',   ['Dark','Ghost'],   62,93,93,62, ['Shadow Sneak','Brutal Swing'],['Ominous Wind','Fury Swipes'],['Shadow Claw','Dark Pulse'], ['Foul Play','Shadow Ball'], null)),
   ],
   lance: [
-    gymSignature('lance',   mon('Altaria',   ['Dragon','Flying'], 61,57,86,66, ['Scale Shot','Aerial Ace'],['Peck','Disarming Voice'],['Dragon Pulse','Fly'], ['Draco Meteor'], null)),
-    gymSignature('lance',   mon('Flygon',    ['Ground','Dragon'], 54,68,54,68, ['Bulldoze','Dragon Tail'],['Bite','Dragon Claw'],['Stomping Tantrum','Rock Slide'], ['Earth Power','Draco Meteor'], null)),
-    gymSignature('lance',   mon('Haxorus',   ['Dragon'],         44,85,52,56, ['Dragon Claw','Scratch'],['Dragon Rage','Brick Break'],['Night Slash','Iron Tail'], ['Outrage'], null)),
+    gymSignature('lance',   mon('Altaria',   ['Dragon','Flying'], 78,72,109,84, ['Scale Shot','Aerial Ace'],['Peck','Disarming Voice'],['Dragon Pulse','Fly'], ['Draco Meteor'], null)),
+    gymSignature('lance',   mon('Flygon',    ['Ground','Dragon'], 77,97,77,97, ['Bulldoze','Dragon Tail'],['Bite','Dragon Claw'],['Stomping Tantrum','Rock Slide'], ['Earth Power','Draco Meteor'], null)),
+    gymSignature('lance',   mon('Haxorus',   ['Dragon'],         62,120,73,79, ['Dragon Claw','Scratch'],['Dragon Rage','Brick Break'],['Night Slash','Iron Tail'], ['Outrage'], null)),
   ],
   gary: [
-    gymSignature('gary',    mon('Arcanine',  ['Fire'],           67,82,59,71, ['Fire Fang','Crunch'],['Quick Attack','Flame Wheel'],['Heat Wave','Extreme Speed'], ['Flare Blitz'], null)),
-    gymSignature('gary',    mon('Alakazam',  ['Psychic'],        38,94,66,83, ['Psycho Cut','Shadow Ball'],['Psywave','Swift'],['Psyshock','Thunder Punch'], ['Future Sight','Focus Blast'], null)),
-    gymSignature('gary',    mon('Pidgeot',   ['Normal','Flying'], 71,69,64,87, ['Wing Attack','Quick Attack'],['Gust','Swift'],['Air Slash','Air Cutter'], ['Hurricane','Hyper Beam'], null)),
+    gymSignature('gary',    mon('Arcanine',  ['Fire'],           83,102,73,88, ['Fire Fang','Crunch'],['Quick Attack','Flame Wheel'],['Heat Wave','Extreme Speed'], ['Flare Blitz'], null)),
+    gymSignature('gary',    mon('Alakazam',  ['Psychic'],        52,128,90,113, ['Psycho Cut','Shadow Ball'],['Psywave','Swift'],['Psyshock','Thunder Punch'], ['Future Sight','Focus Blast'], null)),
+    gymSignature('gary',    mon('Pidgeot',   ['Normal','Flying'], 93,90,83,113, ['Wing Attack','Quick Attack'],['Gust','Swift'],['Air Slash','Air Cutter'], ['Hurricane','Hyper Beam'], null)),
   ],
   oak: [
-    gymSignature('oak',     mon('Venusaur',  ['Grass','Poison'], 56,70,70,56, ['Razor Leaf','Venoshock'],['Vine Whip','Body Slam'],['Seed Bomb','Sludge Bomb'], ['Petal Dance'], null)),
-    gymSignature('oak',     mon('Charizard', ['Fire','Flying'],  60,84,65,77, ['Fire Fang','Wing Attack'],['Dragon Claw','Scratch'],['Flamethrower','Air Slash'], ['Blast Burn','Hurricane'], null)),
-    gymSignature('oak',     mon('Tauros',    ['Normal'],         52,69,66,76, ['Horn Attack','Zen Headbutt'],['Take Down','Iron Tail'],['Double Edge','Rock Slide'], ['Giga Impact','High Horsepower'], null)),
+    gymSignature('oak',     mon('Venusaur',  ['Grass','Poison'], 77,96,96,77, ['Razor Leaf','Venoshock'],['Vine Whip','Body Slam'],['Seed Bomb','Sludge Bomb'], ['Petal Dance'], null)),
+    gymSignature('oak',     mon('Charizard', ['Fire','Flying'],  76,107,83,98, ['Fire Fang','Wing Attack'],['Dragon Claw','Scratch'],['Flamethrower','Air Slash'], ['Blast Burn','Hurricane'], null)),
+    gymSignature('oak',     mon('Tauros',    ['Normal'],         71,94,90,104, ['Horn Attack','Zen Headbutt'],['Take Down','Iron Tail'],['Double Edge','Rock Slide'], ['Giga Impact','High Horsepower'], null)),
   ],
 });
 
@@ -603,8 +606,27 @@ function gymTeamSize(leader) { return GYM_LEADER_DRAFT_PICKS + 1 + gymSignatures
 
 // A gym's pool always holds a few Pokémon of the leader's specialty type (that's what a Gym Leader
 // reaches for), topped up with random picks. Like the two-player draft, it's 15 Pokémon.
+// The fully evolved form of a draft-pool entry: its last stage (a random pick where the line splits),
+// with the stat growth its mid-battle evolutions would give, and nothing left to evolve into.
+function fullyEvolved(p) {
+  if (!p.evolvesTo) return p;
+  let e = p.evolvesTo, stats = { ...p.stats }, name = p.name, types = p.types;
+  while (e) {
+    const pick = e.branch ? e.branch[Math.floor(Math.random() * e.branch.length)] : e;
+    const k = e.mult;
+    stats = { hp: Math.round(stats.hp * k), atk: Math.round(stats.atk * k), def: Math.round(stats.def * k), spd: Math.round(stats.spd * k) };
+    name = pick.name; types = pick.types;
+    e = pick.evolvesTo || null;
+  }
+  return { ...p, name, types: [...types], stats, evolvesTo: null, evolvedFrom: p.name };
+}
+
+// The League (Elite Four, Gary, Professor Oak) is the endgame, so its pool is dealt fully evolved,
+// minus any species already on that opponent's own team (Gary's Arcanine, Oak's Charizard...).
 function getGymPool(leader, count = 15) {
-  const shuffled = shuffle(POKEMON_DB);
+  const theirs = new Set([...gymSignatures(leader.id), GYM_ACES[leader.id]].map(p => p.name));
+  const source = opponentKind(leader) === 'gym' ? POKEMON_DB : POKEMON_DB.map(fullyEvolved).filter(p => !theirs.has(p.name));
+  const shuffled = shuffle(source);
   const onType = shuffled.filter(p => p.types.includes(leader.type)).slice(0, 3);
   const rest = shuffled.filter(p => !onType.includes(p)).slice(0, count - onType.length);
   return shuffle([...onType, ...rest]);
@@ -2023,6 +2045,9 @@ function ScoutingSheet({ pokemon, accent, pickerName, opponentName, opponentRost
         </div>
         <div style={{ display: 'flex', gap: 5, flexShrink: 0, marginTop: 4 }}>{pokemon.types.map(t => <StampBadge key={t} type={t} size={30} />)}</div>
       </div>
+      {pokemon.evolvedFrom && (
+        <div style={{ marginTop: 6, fontFamily: FONT_MONO, fontSize: 10, color: COLORS.jadeBright }}>&#10022; FULLY EVOLVED FROM {pokemon.evolvedFrom.toUpperCase()}</div>
+      )}
       {stages.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 6px', marginTop: 6, fontFamily: FONT_MONO, fontSize: 10, color: COLORS.jadeBright }}>
           <span>&#10022; EVOLVES MID-BATTLE</span>
@@ -3106,6 +3131,9 @@ function GymHubScreen({ challenger, onChallenge, onBack }) {
           <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: '#D9B54A', letterSpacing: '0.15em', margin: '18px 0 8px', textAlign: 'center' }}>
             ★ THE POKÉMON LEAGUE ★
           </div>
+          <div style={{ fontFamily: FONT_BODY, fontSize: 12, color: COLORS.ash, textAlign: 'center', margin: '-2px 0 8px' }}>
+            League drafts use fully evolved Pokémon.
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {leagueShown.map(o => {
               const info = leagueRowInfo(o);
@@ -3230,7 +3258,7 @@ function DraftScreen({ trainers, pool, rosters, pickOrder, pickIndex, onPick, on
         </div>
 
         <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', fontFamily: FONT_MONO, fontSize: 10, color: COLORS.ash, letterSpacing: '0.1em', marginBottom: 7, borderBottom: `1px solid ${COLORS.hairline}`, paddingBottom: 5 }}>
-          <span>THE POOL — {pool.length} LEFT</span>
+          <span>{leader && opponentKind(leader) !== 'gym' ? 'FULLY EVOLVED' : 'THE POOL'} — {pool.length} LEFT</span>
           <span>BY ATTACK &#9660;</span>
         </div>
         <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gridAutoRows: 'minmax(0, 1fr)', gap: 6, overflow: 'hidden' }}>
@@ -3287,7 +3315,7 @@ function ReviewScreen({ trainers, rosters, onBattle, onReset, gym = null, backLa
               ? `${gym.name} fields three Pokémon against your six: two drafted, plus their ace.`
               : opponentKind(gym) === 'gym'
                 ? `${gym.name} fields a full six against your six: two drafted, three gym exclusives, and their ace.`
-                : `${gym.name} fields a full six against your six: two drafted, three of ${gym.poss} own, and ${gym.poss} ace.`}
+                : `${gym.name} fields a full six against your six: two drafted, three of ${gym.poss} own, and ${gym.poss} ace. Everyone drafts fully evolved Pokémon here.`}
           </div>
           {gym.trainedPct > 0 && (
             <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: COLORS.hpMid, marginTop: 10, lineHeight: 1.4 }}>
